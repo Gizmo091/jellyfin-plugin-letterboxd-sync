@@ -89,7 +89,7 @@ public class LetterboxdApi
         {
             var res = await client.GetAsync(tmdbUrl).ConfigureAwait(false);
 
-            string letterboxdUrl = res?.RequestMessage?.RequestUri?.ToString();
+            string letterboxdUrl = res?.RequestMessage?.RequestUri?.ToString() ?? string.Empty;
             var filmSlugRegex = Regex.Match(letterboxdUrl, @"https:\/\/letterboxd\.com\/film\/([^\/]+)\/");
 
             string filmSlug = filmSlugRegex.Groups[1].Value;
@@ -99,7 +99,7 @@ public class LetterboxdApi
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
 
-            var span = htmlDoc.DocumentNode.SelectSingleNode("//div[@data-film-slug='" + filmSlug + "']");
+            var span = htmlDoc.DocumentNode.SelectSingleNode("//div[@data-item-slug='" + filmSlug + "' and @data-film-id]");
             if (span == null)
                 throw new Exception("The search returned no results");
 
@@ -153,50 +153,48 @@ public class LetterboxdApi
         using (var client = new HttpClient())
         {
             client.DefaultRequestHeaders.Add("Cookie", this.cookie);
-            var lstDates = new List<DateTime>();
 
             var response = await client.GetStringAsync(url).ConfigureAwait(false);
-
+            
+            // Parse the HTML to find date components in separate elements
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(response);
+            
+            // Look for month, day, and year in separate elements
+            var monthElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'month')]");
+            var dayElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'date') or contains(@class, 'daydate')]"); 
+            var yearElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'year')]");
 
-            var trReviews = htmlDoc.DocumentNode.SelectNodes("//tr[contains(@class, 'diary-entry-row')]");
-            if (trReviews == null)
-                return null;
-
-            foreach (var trReview in trReviews)
+            var lstDates = new List<DateTime>();
+            
+            if (monthElements != null && dayElements != null && yearElements != null)
             {
-                var tdDayReview = trReview.SelectSingleNode("//td[contains(@class, 'td-day')]");
-                if (tdDayReview == null)
-                    break;
-
-                var linkNode = tdDayReview.SelectSingleNode(".//a");
-                if (linkNode == null)
-                    break;
-
-                string linkReview = $"https://letterboxd.com{linkNode.GetAttributeValue("href", "")}";
-
-                response = await client.GetStringAsync(linkReview).ConfigureAwait(false);
-
-                htmlDoc = new HtmlDocument();
-                htmlDoc.LoadHtml(response);
-
-                var section = htmlDoc.DocumentNode.SelectSingleNode("//section[@class='film-viewing-info-wrapper']");
-                if (section == null)
-                    break;
-
-                var meta = section.SelectSingleNode("meta");
-                if (meta == null)
-                    break;
-
-                var date = meta.GetAttributeValue("content", string.Empty);
-                if (date == null)
-                    break;
-
-                lstDates.Add(DateTime.Parse(date, CultureInfo.InvariantCulture));
+                // Try to match up month/day/year elements (assuming they appear in order)
+                var minCount = Math.Min(Math.Min(monthElements.Count, dayElements.Count), yearElements.Count);
+                
+                for (int i = 0; i < minCount; i++)
+                {
+                    var month = monthElements[i].InnerText?.Trim();
+                    var day = dayElements[i].InnerText?.Trim(); 
+                    var year = yearElements[i].InnerText?.Trim();
+                    
+                    if (!string.IsNullOrEmpty(month) && !string.IsNullOrEmpty(day) && !string.IsNullOrEmpty(year))
+                    {
+                        var dateString = $"{day} {month} {year}"; // "24 Nov 2024" format
+                        if (DateTime.TryParse(dateString, out DateTime parsedDate))
+                        {
+                            lstDates.Add(parsedDate);
+                        }
+                    }
+                }
+            }
+            
+            if (lstDates.Count > 0)
+            {
+                return lstDates.Max();
             }
 
-            return lstDates.Max();
+            return null;
         }
     }
 
