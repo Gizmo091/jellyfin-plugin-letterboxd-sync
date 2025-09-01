@@ -5,3 +5,5 @@ obj/
 artifacts
 .DS_Store
 build.sh
+
+.idea

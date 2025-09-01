@@ -19,6 +19,8 @@ public class LetterboxdApi
 
     private string username = string.Empty;
 
+    public string Csrf => csrf;
+
     public async Task Authenticate(string username, string password)
     {
         string url = "https://letterboxd.com/user/login.do";
@@ -94,22 +96,33 @@ public class LetterboxdApi
 
             string filmSlug = filmSlugRegex.Groups[1].Value;
             if (string.IsNullOrEmpty(filmSlug))
-                throw new Exception("The search returned no results");
+                throw new Exception("The search returned no results (Final url does not match the regex)");
 
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(await res.Content.ReadAsStringAsync().ConfigureAwait(false));
 
             var span = htmlDoc.DocumentNode.SelectSingleNode("//div[@data-film-slug='" + filmSlug + "']");
-            if (span == null)
-                throw new Exception("The search returned no results");
+            var div = htmlDoc.DocumentNode.SelectSingleNode("//div[@data-item-link='/film/"+filmSlug+"/']");
+            HtmlNode? el_for_id = null;
+            if (span != null) {
+                el_for_id = span;
+                }
+            else if (div != null) {
+                el_for_id = div;
+            }
 
-            string filmId = span.GetAttributeValue("data-film-id", string.Empty);
+            if (el_for_id == null) {
+                throw new Exception("The search returned no results (No html element found to get letterboxd filmId)");
+                }
+
+            string filmId = el_for_id.GetAttributeValue("data-film-id", string.Empty);
             if (string.IsNullOrEmpty(filmId))
-                throw new Exception("The search returned no results");
+                throw new Exception("The search returned no results (data-film-id attribute is empty)");
 
             return new FilmResult(filmSlug, filmId);
         }
     }
+
 
     public async Task MarkAsWatched(string filmId, DateTime? date, string[] tags, bool liked = false)
     {
