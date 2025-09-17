@@ -37,7 +37,7 @@ jobs:
                 CUR_TAG=$(git describe --tags --abbrev=0 2>&1 || echo "v0.0.0")
                 CUR_VERSION=${CUR_TAG#v}
 
-                INCREMENT_LEVEL=$(conventional-recommended-bump -p angular --tag-prefix "v")
+                INCREMENT_LEVEL=$(conventional-recommended-bump -p angular  --tag-prefix "v")
                 NEW_VERSION=$(npx semver $CUR_VERSION -i $INCREMENT_LEVEL)
                 
                 CHANGELOG=$(git log $CUR_TAG..HEAD --no-merges --pretty=format:"- %s (%h)")
