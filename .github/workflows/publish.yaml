@@ -34,7 +34,7 @@ jobs:
                 
                 npm install -g conventional-recommended-bump conventional-changelog-angular semver
 
-                CUR_TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+                CUR_TAG=$(git describe --tags --abbrev=0 2>&1 || echo "v0.0.0")
                 CUR_VERSION=${CUR_TAG#v}
 
                 INCREMENT_LEVEL=$(conventional-recommended-bump -p angular --tag-prefix "v")
