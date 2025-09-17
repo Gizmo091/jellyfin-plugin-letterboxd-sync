@@ -37,11 +37,13 @@ jobs:
                 CUR_TAG=$(git describe --tags --abbrev=0 2>&1 || echo "v0.0.0")
                 echo "CUR_TAG = $CUR_TAG"
                 CUR_VERSION=${CUR_TAG#v}
-                echo "CUR_VERSION = $CUR_VERSION"
+                # Remove the 4th part of the version if it exists (e.g., 1.1.2.0 -> 1.1.2)
+                CUR_VERSION_3PART=$(echo $CUR_VERSION | cut -d. -f1-3)
+                echo "CUR_VERSION = $CUR_VERSION (3-part: $CUR_VERSION_3PART)"
 
                 INCREMENT_LEVEL=$(conventional-recommended-bump -p angular  --tag-prefix "v")
                 echo "INCREMENT_LEVEL = $INCREMENT_LEVEL"
-                NEW_VERSION=$(npx semver $CUR_VERSION -i $INCREMENT_LEVEL 2>&1)
+                NEW_VERSION=$(npx semver $CUR_VERSION_3PART -i $INCREMENT_LEVEL 2>&1)
                 echo "NEW_VERSION = $NEW_VERSION"
                 
                 CHANGELOG=$(git log $CUR_TAG..HEAD --no-merges --pretty=format:"- %s (%h)")
