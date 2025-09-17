@@ -5,6 +5,16 @@
     "overview": "Syncs watched movies with Letterboxd diary",
     "description": "A third party plugin to keep your watched movie history automatically updated to a Letterboxd account",
     "owner": "danielveigasilva",
+    "authors" : [
+      {
+        "name" : "Daniel Veiga",
+        "profil": "https://github.com/danielveigasilva"
+      },
+      {
+        "name" : "Mathieu Vedie",
+        "profil" : "https://github.com/Gizmo091"
+      }
+    ],
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/danielveigasilva/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
