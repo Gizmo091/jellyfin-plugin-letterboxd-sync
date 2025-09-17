@@ -29,6 +29,9 @@ jobs:
             - name: 'Generate Version and Changelog'
               id: ged-version-changelog
               run: |
+                NPM_CONFIG_PREFIX=$HOME/.npm-global
+                export PATH=$HOME/.npm-global/bin:$PATH
+                
                 npm install -g conventional-recommended-bump conventional-changelog-angular semver
 
                 CUR_TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
