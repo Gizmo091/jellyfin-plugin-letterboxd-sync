@@ -105,7 +105,7 @@ public class LetterboxdSyncTask : IScheduledTask
                         var dateLastLog = await api.GetDateLastLog(filmResult.filmSlug).ConfigureAwait(false);
                         viewingDate = new DateTime(viewingDate.Value.Year, viewingDate.Value.Month, viewingDate.Value.Day);
 
-                        if (dateLastLog != null && dateLastLog >= viewingDate)
+                        if (dateLastLog != null && dateLastLog.Value.Date == viewingDate.Value.Date)
                         {
                             _logger.LogWarning(
                                 @"Film has been logged into Letterboxd previously ({Date})
