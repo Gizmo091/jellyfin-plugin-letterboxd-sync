@@ -35,12 +35,17 @@ jobs:
                 npm install -g conventional-recommended-bump conventional-changelog-angular semver
 
                 CUR_TAG=$(git describe --tags --abbrev=0 2>&1 || echo "v0.0.0")
+                echo "CUR_TAG = $CUR_TAG"
                 CUR_VERSION=${CUR_TAG#v}
+                echo "CUR_VERSION = $CUR_VERSION"
 
                 INCREMENT_LEVEL=$(conventional-recommended-bump -p angular  --tag-prefix "v")
+                echo "INCREMENT_LEVEL = $INCREMENT_LEVEL"
                 NEW_VERSION=$(npx semver $CUR_VERSION -i $INCREMENT_LEVEL)
+                echo "NEW_VERSION = $NEW_VERSION"
                 
                 CHANGELOG=$(git log $CUR_TAG..HEAD --no-merges --pretty=format:"- %s (%h)")
+                echo "CHANGELOG = $CHANGELOG"
 
                 echo "release-version=$NEW_VERSION" >> $GITHUB_OUTPUT
                 printf "changelog<<EOF\n%s\nEOF\n" "$CHANGELOG" >> $GITHUB_OUTPUT
