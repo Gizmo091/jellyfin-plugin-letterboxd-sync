@@ -19,6 +19,14 @@
     "imageUrl": "https://raw.githubusercontent.com/danielveigasilva/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "1.1.4.0",
+        "changelog": "- add new branch in workflow watching (5825402)\n- fix: update for jellyfin 10.11. Change to dotnet9 and update imports and function calls. Bumped to 2.x major (fe35dab)\n- change link in readme (4caf656)",
+        "targetAbi": "10.9.0.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v1.1.4/jellyfin-plugin-letterboxd-sync-v1.1.4.zip",
+        "checksum": "c66c9c18790f0c4c3394e4067b3e6fae",
+        "timestamp": "2025-10-26T16:04:40Z"
+      },
+      {
         "version": "1.1.3.0",
         "changelog": "- try to fix ci (2aa810a)\n- add log (35ce04c)\n- add log (3662b65)\n- ci ask (14bec84)",
         "targetAbi": "10.9.0.0",
