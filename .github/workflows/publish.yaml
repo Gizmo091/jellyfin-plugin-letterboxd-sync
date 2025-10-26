@@ -5,6 +5,7 @@ on:
         branches: 
             - main
             - master
+            - jf-10.11
         paths-ignore:
             - 'README.md'
 
@@ -12,7 +13,7 @@ permissions:
   contents: write
 
 env:
-    DOTNET_VERSION: '6.0.x'
+    DOTNET_VERSION: '9.0.x'
 
 jobs:
     build:
