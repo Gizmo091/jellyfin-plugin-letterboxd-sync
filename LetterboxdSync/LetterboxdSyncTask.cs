@@ -3,16 +3,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Model.Tasks;
+using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 using LetterboxdSync.Configuration;
-using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Library;
 using System.Linq;
 using MediaBrowser.Model.Entities;
 using System.Globalization;
-using MediaBrowser.Model.Activity;
 
 namespace LetterboxdSync;
 
@@ -23,20 +21,17 @@ public class LetterboxdSyncTask : IScheduledTask
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
-    private readonly IActivityManager _activityManager;
 
     public LetterboxdSyncTask(
             IUserManager userManager,
             ILoggerFactory loggerFactory,
             ILibraryManager libraryManager,
-            IActivityManager activityManager,
             IUserDataManager userDataManager)
         {
             _logger = loggerFactory.CreateLogger<LetterboxdSyncTask>();
             _loggerFactory = loggerFactory;
             _userManager = userManager;
             _libraryManager = libraryManager;
-            _activityManager = activityManager;
             _userDataManager = userDataManager;
         }
 
@@ -92,8 +87,9 @@ public class LetterboxdSyncTask : IScheduledTask
             {
                 int tmdbid;
                 string title = movie.OriginalTitle;
-                bool favorite = movie.IsFavoriteOrLiked(user) && account.SendFavorite;
-                DateTime? viewingDate = _userDataManager.GetUserData(user, movie).LastPlayedDate;
+                var userItemData = _userDataManager.GetUserData(user, movie);
+                bool favorite = movie.IsFavoriteOrLiked(user, userItemData) && account.SendFavorite;
+                DateTime? viewingDate = userItemData.LastPlayedDate;
                 string[] tags = new List<string>() { "" }.ToArray();
 
                 if (int.TryParse(movie.GetProviderId(MetadataProvider.Tmdb), out tmdbid))
@@ -119,10 +115,13 @@ public class LetterboxdSyncTask : IScheduledTask
                         {
                             await api.MarkAsWatched(filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
 
-                            await _activityManager.CreateAsync(new ActivityLog($"\"{title}\" log in Letterboxd", "LetterboxdSync", Guid.Empty) {
-                                ShortOverview = $"Last played by {user.Username} at {viewingDate}",
-                                Overview = $"Movie \"{title}\"({tmdbid}) played by Jellyfin user {user.Username} at {viewingDate} was log in Letterboxd diary of {account.UserLetterboxd} account",
-                            }).ConfigureAwait(false);
+                            _logger.LogInformation(
+                                @"Film logged in Letterboxd
+                                User: {Username} ({UserId})
+                                Movie: {Movie} ({TmdbId})
+                                Date: {ViewingDate}",
+                                user.Username, user.Id.ToString("N"),
+                                title, tmdbid, viewingDate);
                         }
                     }
                     catch (Exception ex)
@@ -158,7 +157,7 @@ public class LetterboxdSyncTask : IScheduledTask
             {
                 new TaskTriggerInfo
                 {
-                    Type = TaskTriggerInfo.TriggerInterval,
+                    Type = TaskTriggerInfoType.IntervalTrigger,
                     IntervalTicks = TimeSpan.FromDays(1).Ticks
                 }
             };
