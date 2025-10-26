@@ -19,6 +19,14 @@
     "imageUrl": "https://raw.githubusercontent.com/danielveigasilva/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "1.1.6.0",
+        "changelog": "- change targetAbi (b31b9ae)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v1.1.6/jellyfin-plugin-letterboxd-sync-v1.1.6.zip",
+        "checksum": "80044efa50ca67ec899a6fba36b27190",
+        "timestamp": "2025-10-26T16:17:30Z"
+      },
+      {
         "version": "1.1.5.0",
         "changelog": "",
         "targetAbi": "10.9.0.0",
