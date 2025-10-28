@@ -39,6 +39,8 @@ https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/maste
 
  - Check `Send Favorite` if you want films marked as favorites on Jellyfin to be marked as favorites on Letterboxd.
 
+ - By default the plugin will do a full sync to letterboxd. Once done initially its advised to `Enable Date Filtering` with a short lookback to avoid load on letterboxd.
+
 <p align="center">
     <img src="/images/config-page.png" width="70%">
 </p>

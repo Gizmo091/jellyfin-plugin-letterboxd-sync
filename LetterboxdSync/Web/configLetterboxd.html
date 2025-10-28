@@ -36,6 +36,19 @@
                         <div class="fieldDescription checkboxFieldDescription"> When active it sends favorite status </div>
                     </div>
 
+                    <h3>Date Filtering</h3>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="enabledatefilter" />
+                            <span>Enable Date Filtering</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription"> Only sync movies played within the specified number of days </div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="number" id="datefilterdays" label="Days to look back" min="1" max="365" />
+                        <div class="fieldDescription">Number of days to look back for played movies (1-365)</div>
+                    </div>
+
                     <div>
                         <button id="save-button" is="emby-button" type="submit" class="raised button-submit block">
                             <span>${Save}</span>

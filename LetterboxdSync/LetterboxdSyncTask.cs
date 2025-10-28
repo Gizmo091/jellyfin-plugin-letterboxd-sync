@@ -67,6 +67,17 @@ public class LetterboxdSyncTask : IScheduledTask
             if (lstMoviesPlayed.Count == 0)
                 continue;
 
+            // Apply date filtering if enabled
+            if (account.EnableDateFilter)
+            {
+                var cutoffDate = DateTime.UtcNow.AddDays(-account.DateFilterDays);
+                lstMoviesPlayed = lstMoviesPlayed.Where(movie =>
+                {
+                    var userItemData = _userDataManager.GetUserData(user, movie);
+                    return userItemData.LastPlayedDate.HasValue && userItemData.LastPlayedDate.Value >= cutoffDate;
+                }).ToList();
+            }
+
             var api = new LetterboxdApi();
             try
             {

@@ -25,6 +25,8 @@ export default function (view, params) {
                 view.querySelector('#password').value = configUserFilter[0].PasswordLetterboxd;
                 view.querySelector('#enable').checked = configUserFilter[0].Enable;
                 view.querySelector('#sendfavorite').checked = configUserFilter[0].SendFavorite;
+                view.querySelector('#enabledatefilter').checked = configUserFilter[0].EnableDateFilter || false;
+                view.querySelector('#datefilterdays').value = configUserFilter[0].DateFilterDays || 7;
             });
         });
     });
@@ -46,12 +48,16 @@ export default function (view, params) {
                 view.querySelector('#password').value = configUserFilter[0].PasswordLetterboxd;
                 view.querySelector('#enable').checked = configUserFilter[0].Enable;
                 view.querySelector('#sendfavorite').checked = configUserFilter[0].SendFavorite;
+                view.querySelector('#enabledatefilter').checked = configUserFilter[0].EnableDateFilter || false;
+                view.querySelector('#datefilterdays').value = configUserFilter[0].DateFilterDays || 7;
             }
             else {
                 view.querySelector('#username').value = '';
                 view.querySelector('#password').value = '';
                 view.querySelector('#enable').checked = false;
                 view.querySelector('#sendfavorite').checked = false;
+                view.querySelector('#enabledatefilter').checked = false;
+                view.querySelector('#datefilterdays').value = 7;
             }
     
         });
@@ -79,6 +85,8 @@ export default function (view, params) {
             configUser.PasswordLetterboxd = view.querySelector('#password').value;
             configUser.Enable = view.querySelector('#enable').checked;
             configUser.SendFavorite = view.querySelector('#sendfavorite').checked;
+            configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
+            configUser.DateFilterDays = parseInt(view.querySelector('#datefilterdays').value) || 7;
 
             const data = JSON.stringify(configUser);
             const url = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/Authenticate');
@@ -117,3 +125,4 @@ export default function (view, params) {
         })
     })
 }
+
