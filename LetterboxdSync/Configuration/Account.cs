@@ -13,4 +13,8 @@ public class Account
     public bool Enable { get; set; }
 
     public bool SendFavorite { get; set; }
+
+    public bool EnableDateFilter { get; set; }
+
+    public int DateFilterDays { get; set; } = 7;
 }
