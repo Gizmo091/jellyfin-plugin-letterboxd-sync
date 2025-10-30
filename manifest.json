@@ -19,6 +19,14 @@
     "imageUrl": "https://raw.githubusercontent.com/danielveigasilva/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "1.1.8.0",
+        "changelog": "- update: add ability to restrict lookback on film updates to avoid letterboxd load (005c655)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v1.1.8/jellyfin-plugin-letterboxd-sync-v1.1.8.zip",
+        "checksum": "89c2f5fd693748c3420be0f8f938f788",
+        "timestamp": "2025-10-30T18:15:03Z"
+      },
+      {
         "version": "1.1.7.0",
         "changelog": "- remove 1.1.5.0 from manifest (6bb47f4)",
         "targetAbi": "10.11.0.0",
