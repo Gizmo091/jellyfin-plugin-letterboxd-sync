@@ -23,6 +23,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+        // Disable TLS session resumption so each Letterboxd sync run gets a fresh TLS handshake.
+        // Set as early as possible (plugin load) so it takes effect before any Letterboxd connection.
+        AppContext.SetSwitch("System.Net.Security.DisableTlsResume", true);
     }
 
     /// <inheritdoc />

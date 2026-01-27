@@ -17,7 +17,6 @@ namespace LetterboxdSync;
 public class LetterboxdSyncTask : IScheduledTask
 {
     private readonly ILogger _logger;
-    private readonly ILoggerFactory _loggerFactory;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
@@ -29,7 +28,6 @@ public class LetterboxdSyncTask : IScheduledTask
             IUserDataManager userDataManager)
         {
             _logger = loggerFactory.CreateLogger<LetterboxdSyncTask>();
-            _loggerFactory = loggerFactory;
             _userManager = userManager;
             _libraryManager = libraryManager;
             _userDataManager = userDataManager;
@@ -78,23 +76,44 @@ public class LetterboxdSyncTask : IScheduledTask
                 }).ToList();
             }
 
-            var api = new LetterboxdApi();
-            try
+            const string CloudflareMessage = "Cloudflare";
+            bool authSucceeded = false;
+            for (int attempt = 0; attempt < 2 && !authSucceeded; attempt++)
             {
-                await api.Authenticate(account.UserLetterboxd, account.PasswordLetterboxd).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    @"{Message}
+                if (attempt > 0)
+                {
+                    var delayMs = 60_000 + Random.Shared.Next(0, 30_001); // 60–90 s
+                    _logger.LogInformation(
+                        "Letterboxd login hit Cloudflare for user {Username}. Retrying once in {Seconds} s.",
+                        user.Username, delayMs / 1000);
+                    await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+                }
+
+                using (var api = new LetterboxdApi())
+                {
+                    try
+                    {
+                        await api.Authenticate(account.UserLetterboxd, account.PasswordLetterboxd).ConfigureAwait(false);
+                        authSucceeded = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        bool isCloudflare = ex.Message.Contains(CloudflareMessage, StringComparison.OrdinalIgnoreCase)
+                            || ex.Message.Contains("Just a moment", StringComparison.OrdinalIgnoreCase);
+                        if (isCloudflare && attempt == 0)
+                            continue;
+                        _logger.LogError(
+                            @"{Message}
                     User: {Username} ({UserId})",
-                    ex.Message,
-                    user.Username, user.Id.ToString("N"));
+                            ex.Message,
+                            user.Username, user.Id.ToString("N"));
+                        break;
+                    }
 
-                continue;
-            }
+                    if (!authSucceeded)
+                        break;
 
-            foreach (var movie in lstMoviesPlayed)
+                    foreach (var movie in lstMoviesPlayed)
             {
                 int tmdbid;
                 string title = movie.OriginalTitle;
@@ -124,8 +143,7 @@ public class LetterboxdSyncTask : IScheduledTask
                         }
                         else
                         {
-                            await api.MarkAsWatched(filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
-
+                            await api.MarkAsWatched(filmResult.filmSlug, filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
                             _logger.LogInformation(
                                 @"Film logged in Letterboxd
                                 User: {Username} ({UserId})
@@ -158,10 +176,13 @@ public class LetterboxdSyncTask : IScheduledTask
                         title);
                 }
             }
+                    if (authSucceeded)
+                        break;
+                }
+            }
         }
 
         progress.Report(100);
-        return;
     }
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => new[]
