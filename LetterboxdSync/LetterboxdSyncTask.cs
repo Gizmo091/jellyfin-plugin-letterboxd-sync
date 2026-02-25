@@ -78,7 +78,7 @@ public class LetterboxdSyncTask : IScheduledTask
                 }).ToList();
             }
 
-            var api = new LetterboxdApi();
+            var api = new LetterboxdApi(_logger);
             try
             {
                 api.SetRawCookies(account.CookiesRaw);

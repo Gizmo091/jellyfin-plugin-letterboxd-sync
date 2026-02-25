@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 
 namespace LetterboxdSync;
 
@@ -17,6 +18,7 @@ public class LetterboxdApi
 {
     private string csrf = string.Empty;
     private string username = string.Empty;
+    private readonly ILogger? _logger;
 
     public string Csrf => csrf;
 
@@ -119,8 +121,9 @@ public class LetterboxdApi
         this.csrf = token;
     }
 
-    public LetterboxdApi()
+    public LetterboxdApi(ILogger? logger = null)
     {
+        _logger = logger;
         handler = new HttpClientHandler
         {
             CookieContainer = cookieContainer,
@@ -544,7 +547,10 @@ public class LetterboxdApi
                             (message.Contains("expired", StringComparison.OrdinalIgnoreCase) ||
                              message.Contains("try again", StringComparison.OrdinalIgnoreCase)))
                         {
-                            await Task.Delay((attempt + 1) * 5000 + Random.Shared.Next(3000)).ConfigureAwait(false);
+                            var delayMs = (attempt + 1) * 5000 + Random.Shared.Next(3000);
+                            _logger?.LogWarning("Transient error on attempt {Attempt} for film {FilmSlug}: \"{Message}\". Retrying in {Delay}ms...",
+                                attempt + 1, filmSlug, message, delayMs);
+                            await Task.Delay(delayMs).ConfigureAwait(false);
                             continue;
                         }
 
