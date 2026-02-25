@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "1.8.5.0",
+        "changelog": "- fix: retry with backoff on transient Letterboxd errors in MarkAsWatched (2d4d8f1)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v1.8.5/jellyfin-plugin-letterboxd-sync-v1.8.5.zip",
+        "checksum": "610800c009a925f1759edd82b9e8c398",
+        "timestamp": "2026-02-25T14:32:32Z"
+      },
+      {
         "version": "1.8.4.0",
         "changelog": "- fix: remove 'username' from watchlist labels to prevent password manager detection (007ddb3)",
         "targetAbi": "10.11.0.0",
