@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "1.8.6.0",
+        "changelog": "- fix: add logging to MarkAsWatched retry attempts (1f851cb)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v1.8.6/jellyfin-plugin-letterboxd-sync-v1.8.6.zip",
+        "checksum": "507f7d58e804a6a6f3362ce9fa2aaef8",
+        "timestamp": "2026-02-25T14:44:27Z"
+      },
+      {
         "version": "1.8.5.0",
         "changelog": "- fix: retry with backoff on transient Letterboxd errors in MarkAsWatched (2d4d8f1)",
         "targetAbi": "10.11.0.0",
