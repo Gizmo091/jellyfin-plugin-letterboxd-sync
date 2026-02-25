@@ -473,7 +473,7 @@ public class LetterboxdApi
         string url = "/s/save-diary-entry";
         DateTime viewingDate = date == null ? DateTime.Now : (DateTime)date;
 
-        for (int attempt = 0; attempt < 2; attempt++)
+        for (int attempt = 0; attempt < 3; attempt++)
         {
             // IMPORTANT: Refresh CSRF from the film page (scoped token).
             await RefreshCsrfCookieAsync().ConfigureAwait(false);
@@ -539,10 +539,12 @@ public class LetterboxdApi
                         if (SuccessOperation(json, out string message))
                             return;
 
-                        // Retry once on "expired"
-                        if (attempt == 0 &&
-                            message.Contains("expired", StringComparison.OrdinalIgnoreCase))
+                        // Retry on transient errors (expired CSRF, rate-limiting)
+                        if (attempt < 2 &&
+                            (message.Contains("expired", StringComparison.OrdinalIgnoreCase) ||
+                             message.Contains("try again", StringComparison.OrdinalIgnoreCase)))
                         {
+                            await Task.Delay((attempt + 1) * 5000 + Random.Shared.Next(3000)).ConfigureAwait(false);
                             continue;
                         }
 
@@ -552,7 +554,7 @@ public class LetterboxdApi
             }
         }
 
-        throw new Exception("Failed to submit diary entry after retry.");
+        throw new Exception("Failed to submit diary entry after retries.");
     }
 
 
