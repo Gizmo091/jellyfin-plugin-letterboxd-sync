@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace LetterboxdSync.Configuration;
 
@@ -32,5 +31,5 @@ public class Account
 
     public int DateFilterDays { get; set; } = 7;
 
-    public List<string> WatchlistUsernames { get; set; } = new List<string>();
+    public Collection<string> WatchlistUsernames { get; } = new();
 }

@@ -469,6 +469,7 @@
             '  <div class="inputContainer">',
             '    <label class="inputLabel" for="lbxd-account">' + t.username + '</label>',
             '    <input type="text" id="lbxd-account" class="emby-input" autocomplete="off" />',
+            '    <div class="fieldDescription">' + (t.usernameHint || 'Your Letterboxd username (from letterboxd.com/&lt;username&gt;/), not your email address.') + '</div>',
             '  </div>',
             '  <div class="inputContainer">',
             '    <label class="inputLabel" for="lbxd-key">' + t.password + '</label>',

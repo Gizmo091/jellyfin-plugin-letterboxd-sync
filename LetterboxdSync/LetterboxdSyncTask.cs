@@ -76,7 +76,7 @@ public class LetterboxdSyncTask : IScheduledTask
                 lstMoviesPlayed = lstMoviesPlayed.Where(movie =>
                 {
                     var userItemData = _userDataManager.GetUserData(user, movie);
-                    return userItemData.LastPlayedDate.HasValue && userItemData.LastPlayedDate.Value >= cutoffDate;
+                    return userItemData?.LastPlayedDate is { } lastPlayed && lastPlayed >= cutoffDate;
                 }).ToList();
             }
 
@@ -99,8 +99,13 @@ public class LetterboxdSyncTask : IScheduledTask
 
             foreach (var movie in lstMoviesPlayed)
             {
-                string? title = movie.OriginalTitle;
                 var userItemData = _userDataManager.GetUserData(user, movie);
+                if (userItemData is null)
+                {
+                    continue;
+                }
+
+                string? title = movie.OriginalTitle;
                 bool favorite = movie.IsFavoriteOrLiked(user, userItemData) && account.SendFavorite;
                 DateTime? viewingDate = userItemData.LastPlayedDate;
                 string[] tags = new List<string>() { string.Empty }.ToArray();

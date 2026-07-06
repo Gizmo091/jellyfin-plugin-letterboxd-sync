@@ -66,7 +66,7 @@ public class LetterboxdSyncController : ControllerBase
             sendFavorite = account?.SendFavorite ?? false,
             enableDateFilter = account?.EnableDateFilter ?? false,
             dateFilterDays = account?.DateFilterDays ?? 7,
-            watchlistUsernames = account?.WatchlistUsernames ?? new List<string>(),
+            watchlistUsernames = (IEnumerable<string>?)account?.WatchlistUsernames ?? new List<string>(),
             isLinked = !string.IsNullOrWhiteSpace(account?.RefreshToken),
         });
     }
@@ -111,8 +111,14 @@ public class LetterboxdSyncController : ControllerBase
         lock (_configLock)
         {
             var config = Plugin.Instance!.Configuration;
-            config.Accounts.RemoveAll(a =>
-                string.Equals(a.UserJellyfin, userIdStr, StringComparison.OrdinalIgnoreCase));
+            for (int i = config.Accounts.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(config.Accounts[i].UserJellyfin, userIdStr, StringComparison.OrdinalIgnoreCase))
+                {
+                    config.Accounts.RemoveAt(i);
+                }
+            }
+
             config.Accounts.Add(body);
             Plugin.Instance.SaveConfiguration();
         }
