@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "2.0.3.0",
+        "changelog": "- chore: remove obsolete scraping/cookies leftovers (93cdbe7)\n- style: raise the date-filter cap to 5000 days in the other config UIs too (6964278)\n- docs: rewrite README for the official-API flow (46b9517)\n- chore(release): v2.0.2 [skip ci] (a2f7c36)\n- feat: allow more than one year to look back (1188241)",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v2.0.3/jellyfin-plugin-letterboxd-sync-v2.0.3.zip",
+        "checksum": "318419c9b50ee7b86950efb21a082f67",
+        "timestamp": "2026-07-06T14:49:09Z"
+      },
+      {
         "version": "2.0.2.0",
         "changelog": "- feat: clarify username-not-email in config UI and fix build/CI warnings (3fa9727)\n- chore(release): v2.0.1 [skip ci] (fdd12b5)",
         "targetAbi": "10.11.9.0",

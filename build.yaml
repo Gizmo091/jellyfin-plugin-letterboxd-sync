@@ -1,7 +1,7 @@
 ---
 name: "LetterboxdSync"
 guid: "b1fb3d98-3336-4b87-a5c9-8a948bd87233"
-version: "2.0.2.0"
+version: "2.0.3.0"
 targetAbi: "10.11.9.0"
 framework: "net9.0"
 overview: "Sync movies with Letterboxd"
