@@ -1,15 +1,18 @@
 name: '🚀 Publish'
 
+# Releases are driven by version tags: push a tag like `v1.9.0` to build and publish that version.
+# Flow: build a DRAFT release -> run the full test suite (incl. authenticated write tests) ->
+# only if the tests pass, publish the release (remove the draft) and record it in manifest.json.
+# `workflow_dispatch` allows a manual run (you must supply the version).
 on:
     push:
-        branches:
-            - main
-            - master
-            - jf-10.11
-            - feature/letterboxd-watchlist
-        paths-ignore:
-            - 'README.md'
-            - 'images/**'
+        tags:
+            - 'v*'
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to publish, without the leading v (e.g. 1.9.0)'
+                required: true
 
 permissions:
   contents: write
@@ -19,51 +22,41 @@ env:
 
 jobs:
     build:
-        if: ${{ github.actor != 'github-actions[bot]' }}
         runs-on: ubuntu-latest
         outputs:
-            release-version: ${{ steps.ged-version-changelog.outputs.release-version }}
-            changelog: ${{ steps.ged-version-changelog.outputs.changelog }}
+            release-version: ${{ steps.meta.outputs.release-version }}
+            changelog: ${{ steps.meta.outputs.changelog }}
         steps:
             - uses: actions/checkout@v4
               with:
                 fetch-depth: 0
 
-            - name: 'Generate Version and Changelog'
-              id: ged-version-changelog
+            - name: 'Determine version and changelog'
+              id: meta
               run: |
-                NPM_CONFIG_PREFIX=$HOME/.npm-global
-                export PATH=$HOME/.npm-global/bin:$PATH
-                
-                npm install -g conventional-recommended-bump conventional-changelog-angular semver
+                if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                  VERSION="${{ github.event.inputs.version }}"
+                else
+                  VERSION="${GITHUB_REF_NAME#v}"
+                fi
+                echo "Publishing version $VERSION"
+                echo "release-version=$VERSION" >> "$GITHUB_OUTPUT"
 
-                CUR_TAG=$(git describe --tags --abbrev=0 2>&1 || echo "v0.0.0")
-                echo "CUR_TAG = $CUR_TAG"
-                CUR_VERSION=${CUR_TAG#v}
-                # Remove the 4th part of the version if it exists (e.g., 1.1.2.0 -> 1.1.2)
-                CUR_VERSION_3PART=$(echo $CUR_VERSION | cut -d. -f1-3)
-                echo "CUR_VERSION = $CUR_VERSION (3-part: $CUR_VERSION_3PART)"
+                PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+                if [ -n "$PREV_TAG" ]; then
+                  CHANGELOG=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s (%h)")
+                else
+                  CHANGELOG=$(git log --no-merges --pretty=format:"- %s (%h)")
+                fi
+                printf "changelog<<EOF\n%s\nEOF\n" "$CHANGELOG" >> "$GITHUB_OUTPUT"
 
-                INCREMENT_LEVEL=$(conventional-recommended-bump -p angular  --tag-prefix "v")
-                echo "INCREMENT_LEVEL = $INCREMENT_LEVEL"
-                NEW_VERSION=$(npx semver $CUR_VERSION_3PART -i $INCREMENT_LEVEL 2>&1)
-                echo "NEW_VERSION = $NEW_VERSION"
-                
-                CHANGELOG=$(git log $CUR_TAG..HEAD --no-merges --pretty=format:"- %s (%h)")
-                echo "CHANGELOG = $CHANGELOG"
-
-                echo "release-version=$NEW_VERSION" >> $GITHUB_OUTPUT
-                printf "changelog<<EOF\n%s\nEOF\n" "$CHANGELOG" >> $GITHUB_OUTPUT
-
-                echo "$CUR_VERSION -> $NEW_VERSION"
-                echo "$CHANGELOG"
-
-            - name: 'Update Directory.Build.props and build.yaml'
+            - name: 'Set version in project files'
               run: |
-                sed "s/<Version>.*<\/Version>/<Version>${{ steps.ged-version-changelog.outputs.release-version }}.0<\/Version>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${{ steps.ged-version-changelog.outputs.release-version }}.0<\/AssemblyVersion>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${{ steps.ged-version-changelog.outputs.release-version }}.0<\/FileVersion>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/version: \".*\"/version: \"${{ steps.ged-version-changelog.outputs.release-version }}.0\"/" build.yaml  > build.yaml.temp && mv build.yaml.temp build.yaml
+                V="${{ steps.meta.outputs.release-version }}.0"
+                sed -i "s/<Version>.*<\/Version>/<Version>${V}<\/Version>/" Directory.Build.props
+                sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${V}<\/AssemblyVersion>/" Directory.Build.props
+                sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${V}<\/FileVersion>/" Directory.Build.props
+                sed -i "s/version: \".*\"/version: \"${V}\"/" build.yaml
 
             - name: 'Setup .NET (${{env.DOTNET_VERSION}})'
               uses: actions/setup-dotnet@v4
@@ -73,29 +66,61 @@ jobs:
             - name: 'Build project'
               run: |
                 dotnet restore
-                dotnet publish --configuration Release --output publish
+                dotnet publish LetterboxdSync/LetterboxdSync.csproj --configuration Release --output publish
 
             - name: 'Generate Artefacts'
               run: |
                 cd publish
-                zip ${{ github.event.repository.name }}-v${{ steps.ged-version-changelog.outputs.release-version }}.zip \
-                HtmlAgilityPack.dll \
+                zip ${{ github.event.repository.name }}-v${{ steps.meta.outputs.release-version }}.zip \
                 LetterboxdSync.dll
 
             - name: 'Upload Artefacts'
               uses: actions/upload-artifact@v4
               with:
-                name: ${{ github.event.repository.name }}-v${{ steps.ged-version-changelog.outputs.release-version }}
-                path: publish/${{ github.event.repository.name }}-v${{ steps.ged-version-changelog.outputs.release-version }}.zip
+                name: ${{ github.event.repository.name }}-v${{ steps.meta.outputs.release-version }}
+                path: publish/${{ github.event.repository.name }}-v${{ steps.meta.outputs.release-version }}.zip
+
+            - name: 'Create draft release'
+              uses: softprops/action-gh-release@v2
+              with:
+                tag_name: v${{ steps.meta.outputs.release-version }}
+                name: v${{ steps.meta.outputs.release-version }}
+                body: ${{ steps.meta.outputs.changelog }}
+                files: publish/${{ github.event.repository.name }}-v${{ steps.meta.outputs.release-version }}.zip
+                draft: true
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    test:
+        name: 'test (must pass before publishing)'
+        runs-on: ubuntu-latest
+        needs: build
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: 'Setup .NET (${{env.DOTNET_VERSION}})'
+              uses: actions/setup-dotnet@v4
+              with:
+                dotnet-version: ${{env.DOTNET_VERSION}}
+
+            # Full suite including the authenticated write tests (they need the test account secrets).
+            - name: 'Run tests'
+              env:
+                LETTERBOXD_TEST_USERNAME: ${{ secrets.LETTERBOXD_TEST_USERNAME }}
+                LETTERBOXD_TEST_PASSWORD: ${{ secrets.LETTERBOXD_TEST_PASSWORD }}
+                LETTERBOXD_RUN_WRITE_TESTS: 'true'
+              run: dotnet test LetterboxdSync.sln --configuration Release --verbosity normal
 
     publish:
         name: 'publish v${{needs.build.outputs.release-version}}'
         runs-on: ubuntu-latest
         environment: prd
-        needs: build
+        needs: [build, test]
         steps:
+            # Check out master (not the tag) so the manifest update can be committed back to it.
             - uses: actions/checkout@v4
               with:
+                ref: master
                 fetch-depth: 0
 
             - uses: actions/download-artifact@v4
@@ -103,63 +128,48 @@ jobs:
                 name: ${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}
                 path: publish
 
-            - name: 'Update Directory.Build.props and build.yaml'
+            - name: 'Update manifest.json and version files'
+              env:
+                CHANGELOG: ${{ needs.build.outputs.changelog }}
               run: |
-                sed "s/<Version>.*<\/Version>/<Version>${{ needs.build.outputs.release-version }}.0<\/Version>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${{ needs.build.outputs.release-version }}.0<\/AssemblyVersion>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${{ needs.build.outputs.release-version }}.0<\/FileVersion>/" Directory.Build.props > Directory.Build.props.temp && mv Directory.Build.props.temp Directory.Build.props
-                sed "s/version: \".*\"/version: \"${{ needs.build.outputs.release-version }}.0\"/" build.yaml  > build.yaml.temp && mv build.yaml.temp build.yaml
-            
-            - name: 'Update manifest.json'
-              run: |
-                  TARGETABI="10.11.0.0"
-                  TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+                V="${{ needs.build.outputs.release-version }}"
+                TARGETABI="10.11.9.0"
+                TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+                CHECKSUM=$(md5sum publish/${{ github.event.repository.name }}-v${V}.zip | awk '{print $1}')
+                SOURCE_URL="https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/v${V}/${{ github.event.repository.name }}-v${V}.zip"
 
-                  CHECKSUM=$(md5sum publish/${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}.zip | awk '{print $1}')
-                  SOURCE_URL="https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/v${{ needs.build.outputs.release-version }}/${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}.zip"
-  
-                  NEW_ENTRY="{
-                    "version": \"${{ needs.build.outputs.release-version }}.0\",
-                    "changelog": \"${{needs.build.outputs.changelog}}\",
-                    "targetAbi": \"${TARGETABI}\",
-                    "sourceUrl": \"${SOURCE_URL}\",
-                    "checksum": \"${CHECKSUM}\",
-                    "timestamp": \"${TIMESTAMP}\"
-                  }"
+                # Build the new manifest entry safely (changelog comes from an env var, not inlined).
+                NEW_ENTRY=$(jq -n \
+                  --arg version "${V}.0" \
+                  --arg changelog "$CHANGELOG" \
+                  --arg targetAbi "$TARGETABI" \
+                  --arg sourceUrl "$SOURCE_URL" \
+                  --arg checksum "$CHECKSUM" \
+                  --arg timestamp "$TIMESTAMP" \
+                  '{version:$version, changelog:$changelog, targetAbi:$targetAbi, sourceUrl:$sourceUrl, checksum:$checksum, timestamp:$timestamp}')
 
-                  jq ".[0].versions = [${NEW_ENTRY}] + .[0].versions" manifest.json > manifest.json.temp && mv manifest.json.temp manifest.json
+                jq ".[0].versions = [${NEW_ENTRY}] + .[0].versions" manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json
 
-            - name: 'Commit Changes'
+                sed -i "s/<Version>.*<\/Version>/<Version>${V}.0<\/Version>/" Directory.Build.props
+                sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${V}.0<\/AssemblyVersion>/" Directory.Build.props
+                sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${V}.0<\/FileVersion>/" Directory.Build.props
+                sed -i "s/version: \".*\"/version: \"${V}.0\"/" build.yaml
+
+            - name: 'Commit manifest to master'
               run: |
                 git config user.name "GitHub Actions"
                 git config user.email "actions@github.com"
-                
-                git add Directory.Build.props build.yaml manifest.json
-                
-                git commit -m "chore(release): v${{ needs.build.outputs.release-version }}"
-                git tag v${{ needs.build.outputs.release-version }}
-                
-                git push origin HEAD
-                git push origin v${{ needs.build.outputs.release-version }}
-            
-            - name: 'Create Release'
-              id: create-release
-              uses: actions/create-release@v1
+                git add manifest.json build.yaml Directory.Build.props
+                git commit -m "chore(release): v${{ needs.build.outputs.release-version }} [skip ci]" || echo "Nothing to commit"
+                git push origin master
+
+            - name: 'Publish the release (remove draft)'
+              uses: softprops/action-gh-release@v2
               with:
                 tag_name: v${{ needs.build.outputs.release-version }}
-                release_name: v${{ needs.build.outputs.release-version }}
+                name: v${{ needs.build.outputs.release-version }}
+                body: ${{ needs.build.outputs.changelog }}
+                files: publish/${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}.zip
                 draft: false
-                prerelease: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
-                body: ${{needs.build.outputs.changelog}}
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-            - name: 'Upload Release Asset'
-              uses: actions/upload-release-asset@v1
-              with:
-                upload_url: ${{ steps.create-release.outputs.upload_url }}
-                asset_path: publish/${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}.zip
-                asset_name: ${{ github.event.repository.name }}-v${{ needs.build.outputs.release-version }}.zip
-                asset_content_type: application/zip
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
