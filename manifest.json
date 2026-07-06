@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "2.0.4.0",
+        "changelog": "- docs: fix LETTERBOXD_API.md rendering (remove a stray NUL byte) (97c2d22)\n- docs(ui): clarify that \"Letterboxd Secret\" is your password (c059e60)\n- fix: keep read-only config collections populated on save (622db62)\n- chore(release): v2.0.3 [skip ci] (7a75ca1)",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v2.0.4/jellyfin-plugin-letterboxd-sync-v2.0.4.zip",
+        "checksum": "39e69a450a7b04eb33ea61a6cfcac688",
+        "timestamp": "2026-07-06T15:02:43Z"
+      },
+      {
         "version": "2.0.3.0",
         "changelog": "- chore: remove obsolete scraping/cookies leftovers (93cdbe7)\n- style: raise the date-filter cap to 5000 days in the other config UIs too (6964278)\n- docs: rewrite README for the official-API flow (46b9517)\n- chore(release): v2.0.2 [skip ci] (a2f7c36)\n- feat: allow more than one year to look back (1188241)",
         "targetAbi": "10.11.9.0",
