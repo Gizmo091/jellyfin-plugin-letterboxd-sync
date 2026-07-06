@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace LetterboxdSync.Configuration;
 
@@ -28,5 +29,8 @@ public class Account
 
     public int DateFilterDays { get; set; } = 7;
 
+    // Populate is required so System.Text.Json fills this read-only collection when Jellyfin
+    // deserializes the updated plugin configuration (otherwise saved watchlists are dropped).
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
     public Collection<string> WatchlistUsernames { get; } = new();
 }
