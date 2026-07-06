@@ -433,6 +433,7 @@
             '  <div class="inputContainer">',
             '    <label class="inputLabel" for="lbxd-key">' + t.password + '</label>',
             '    <input type="password" id="lbxd-key" class="emby-input" autocomplete="new-password" />',
+            '    <div class="fieldDescription">' + (t.passwordHint || 'Your Letterboxd password. Used once to obtain a token; it is never stored.') + '</div>',
             '    <div class="fieldDescription" id="lbxd-link-status"></div>',
             '  </div>',
             '  <h3>' + t.options + '</h3>',
