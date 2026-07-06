@@ -24,9 +24,9 @@ public class LetterboxdApi
     // The API requires every request to be signed with these (apikey + HMAC-SHA256 signature).
     // If these stop working (401 "invalid API key or computed signature"), see docs/LETTERBOXD_API.md §3.
     private const string ApiKey = "ebe3d27ec52a35fc8d1835c6531c37bd72b7a54337666d5bd759379b72ae16f0";
-    private static readonly byte[] ApiSecret = Encoding.ASCII.GetBytes("c60ce045d25bc90cb56026a8dd621eebeef995cbecc51951192da75348c977cd");
     private const string BaseUrl = "https://api.letterboxd.com/api/v0";
 
+    private static readonly byte[] ApiSecret = Encoding.ASCII.GetBytes("c60ce045d25bc90cb56026a8dd621eebeef995cbecc51951192da75348c977cd");
     private static readonly HttpClient Client = CreateClient();
 
     private readonly ILogger? _logger;
@@ -50,6 +50,7 @@ public class LetterboxdApi
         var handler = new HttpClientHandler
         {
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+            CheckCertificateRevocationList = true,
         };
 
         var client = new HttpClient(handler);
@@ -364,9 +365,6 @@ public class LetterboxdApi
 
     // ===== Watchlist input parsing (shared with the watchlist sync task) =========================
 
-    /// <summary>Resolved target for a watchlist/list input.</summary>
-    public record WatchlistTarget(string DisplayName, string? Username, string? ListSlug);
-
     /// <summary>
     /// Resolves a watchlist input (plain username, full URL, short boxd.it URL, or list URL) to a target.
     /// </summary>
@@ -393,7 +391,7 @@ public class LetterboxdApi
         // Short URL (boxd.it) — read the Location header without following it (no Cloudflare on boxd.it).
         if (uri.Host.Equals("boxd.it", StringComparison.OrdinalIgnoreCase))
         {
-            using var redirectHandler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var redirectHandler = new HttpClientHandler { AllowAutoRedirect = false, CheckCertificateRevocationList = true };
             using var httpClient = new HttpClient(redirectHandler);
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Letterboxd-JellyfinSync/2.0");
             using var response = await httpClient.GetAsync(uri).ConfigureAwait(false);
@@ -448,7 +446,7 @@ public class LetterboxdApi
             }
         }
 
-        return new FilmResult(slug, lid) { tmdbId = tmdb };
+        return new FilmResult(slug, lid) { TmdbId = tmdb };
     }
 
     private static string ExtractFilmSlug(string? letterboxdUrl)
@@ -554,42 +552,5 @@ public class LetterboxdApi
         }
 
         return body.Length > 300 ? body.Substring(0, 300) : body;
-    }
-}
-
-/// <summary>Result of resolving a film on Letterboxd.</summary>
-public class FilmResult
-{
-    public FilmResult(string filmSlug, string filmId)
-    {
-        this.filmSlug = filmSlug;
-        this.filmId = filmId;
-    }
-
-    /// <summary>The film's URL slug (e.g. "the-godfather"). May be empty.</summary>
-    public string filmSlug { get; set; } = string.Empty;
-
-    /// <summary>The Letterboxd film LID (used to log the film).</summary>
-    public string filmId { get; set; } = string.Empty;
-
-    /// <summary>The film's TMDB id, when known (used to match against the Jellyfin library).</summary>
-    public string? tmdbId { get; set; }
-}
-
-/// <summary>Error raised for a failed Letterboxd API operation.</summary>
-public class LetterboxdApiException : Exception
-{
-    public LetterboxdApiException()
-    {
-    }
-
-    public LetterboxdApiException(string message)
-        : base(message)
-    {
-    }
-
-    public LetterboxdApiException(string message, Exception innerException)
-        : base(message, innerException)
-    {
     }
 }

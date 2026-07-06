@@ -27,12 +27,3 @@ public static class IndexHtmlTransformer
         return contents.Replace("</body>", $"{ScriptTag}\n</body>", StringComparison.Ordinal);
     }
 }
-
-/// <summary>
-/// Shape of the payload the File Transformation plugin deserializes into the callback. Only the file
-/// contents are needed. Property matching is case-insensitive (the plugin sends <c>contents</c>).
-/// </summary>
-public sealed class FileTransformationPayload
-{
-    public string Contents { get; set; } = string.Empty;
-}

@@ -1,40 +1,38 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MediaBrowser.Model.Tasks;
-using MediaBrowser.Controller.Library;
-using Microsoft.Extensions.Logging;
-using LetterboxdSync.Configuration;
 using Jellyfin.Data.Enums;
+using LetterboxdSync.Configuration;
 using MediaBrowser.Controller.Entities;
-using System.Linq;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
-using System.Globalization;
+using MediaBrowser.Model.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace LetterboxdSync;
 
 public class LetterboxdSyncTask : IScheduledTask
 {
+    private static readonly object ConfigSaveLock = new();
+
     private readonly ILogger _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
 
     public LetterboxdSyncTask(
-            IUserManager userManager,
-            ILoggerFactory loggerFactory,
-            ILibraryManager libraryManager,
-            IUserDataManager userDataManager)
-        {
-            _logger = loggerFactory.CreateLogger<LetterboxdSyncTask>();
-            _userManager = userManager;
-            _libraryManager = libraryManager;
-            _userDataManager = userDataManager;
-        }
-
-    private static PluginConfiguration Configuration =>
-            Plugin.Instance!.Configuration;
+        IUserManager userManager,
+        ILoggerFactory loggerFactory,
+        ILibraryManager libraryManager,
+        IUserDataManager userDataManager)
+    {
+        _logger = loggerFactory.CreateLogger<LetterboxdSyncTask>();
+        _userManager = userManager;
+        _libraryManager = libraryManager;
+        _userDataManager = userDataManager;
+    }
 
     public string Name => "Played media sync with letterboxd";
 
@@ -44,6 +42,8 @@ public class LetterboxdSyncTask : IScheduledTask
 
     public string Category => "LetterboxdSync";
 
+    private static PluginConfiguration Configuration =>
+        Plugin.Instance!.Configuration;
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
@@ -53,7 +53,9 @@ public class LetterboxdSyncTask : IScheduledTask
             var account = Configuration.Accounts.FirstOrDefault(account => account.UserJellyfin == user.Id.ToString("N") && account.Enable);
 
             if (account == null)
+            {
                 continue;
+            }
 
             var lstMoviesPlayed = _libraryManager.GetItemList(new InternalItemsQuery(user)
             {
@@ -89,21 +91,21 @@ public class LetterboxdSyncTask : IScheduledTask
                     @"{Message}
                     User: {Username} ({UserId})",
                     ex.Message,
-                    user.Username, user.Id.ToString("N"));
+                    user.Username,
+                    user.Id.ToString("N"));
 
                 continue;
             }
 
             foreach (var movie in lstMoviesPlayed)
             {
-                int tmdbid;
-                string title = movie.OriginalTitle;
+                string? title = movie.OriginalTitle;
                 var userItemData = _userDataManager.GetUserData(user, movie);
                 bool favorite = movie.IsFavoriteOrLiked(user, userItemData) && account.SendFavorite;
                 DateTime? viewingDate = userItemData.LastPlayedDate;
-                string[] tags = new List<string>() { "" }.ToArray();
+                string[] tags = new List<string>() { string.Empty }.ToArray();
 
-                if (int.TryParse(movie.GetProviderId(MetadataProvider.Tmdb), out tmdbid))
+                if (int.TryParse(movie.GetProviderId(MetadataProvider.Tmdb), out int tmdbid))
                 {
                     try
                     {
@@ -115,8 +117,10 @@ public class LetterboxdSyncTask : IScheduledTask
                                 @"Film not found on Letterboxd
                                 User: {Username} ({UserId})
                                 Movie: {Movie} ({TmdbId})",
-                                user.Username, user.Id.ToString("N"),
-                                title, tmdbid);
+                                user.Username,
+                                user.Id.ToString("N"),
+                                title,
+                                tmdbid);
                             continue;
                         }
 
@@ -124,14 +128,17 @@ public class LetterboxdSyncTask : IScheduledTask
                         viewingDate = (viewingDate ?? DateTime.Now).Date;
 
                         // MarkAsWatched is idempotent server-side (204 = already logged), so no pre-check is needed.
-                        await api.MarkAsWatched(filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
+                        await api.MarkAsWatched(filmResult.FilmId, viewingDate, tags, favorite).ConfigureAwait(false);
                         _logger.LogInformation(
                             @"Film logged in Letterboxd
                             User: {Username} ({UserId})
                             Movie: {Movie} ({TmdbId})
                             Date: {ViewingDate}",
-                            user.Username, user.Id.ToString("N"),
-                            title, tmdbid, viewingDate);
+                            user.Username,
+                            user.Id.ToString("N"),
+                            title,
+                            tmdbid,
+                            viewingDate);
 
                         // Small delay between films to stay well-mannered.
                         await Task.Delay(1000 + Random.Shared.Next(1000), cancellationToken).ConfigureAwait(false);
@@ -144,8 +151,10 @@ public class LetterboxdSyncTask : IScheduledTask
                             Movie: {Movie} ({TmdbId})
                             StackTrace: {StackTrace}",
                             ex.Message,
-                            user.Username, user.Id.ToString("N"),
-                            title, tmdbid,
+                            user.Username,
+                            user.Id.ToString("N"),
+                            title,
+                            tmdbid,
                             ex.StackTrace);
                     }
                 }
@@ -155,7 +164,8 @@ public class LetterboxdSyncTask : IScheduledTask
                         @"Film does not have TmdbId
                         User: {Username} ({UserId})
                         Movie: {Movie}",
-                        user.Username, user.Id.ToString("N"),
+                        user.Username,
+                        user.Id.ToString("N"),
                         title);
                 }
             }
@@ -164,7 +174,14 @@ public class LetterboxdSyncTask : IScheduledTask
         progress.Report(100);
     }
 
-    private static readonly object ConfigSaveLock = new();
+    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => new[]
+    {
+        new TaskTriggerInfo
+        {
+            Type = TaskTriggerInfoType.IntervalTrigger,
+            IntervalTicks = TimeSpan.FromDays(1).Ticks
+        }
+    };
 
     /// <summary>
     /// Authenticates <paramref name="api"/> for the given account, preferring a stored refresh token
@@ -210,13 +227,4 @@ public class LetterboxdSyncTask : IScheduledTask
             }
         }
     }
-
-    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => new[]
-            {
-                new TaskTriggerInfo
-                {
-                    Type = TaskTriggerInfoType.IntervalTrigger,
-                    IntervalTicks = TimeSpan.FromDays(1).Ticks
-                }
-            };
 }

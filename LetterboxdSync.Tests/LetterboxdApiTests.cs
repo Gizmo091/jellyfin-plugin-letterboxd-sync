@@ -20,9 +20,9 @@ namespace LetterboxdSync.Tests
             var result = await _api.SearchFilmByTmdbId(550);
 
             Assert.NotNull(result);
-            Assert.NotEmpty(result!.filmId); // Letterboxd LID
-            Assert.Equal("550", result.tmdbId);
-            Assert.Contains("fight-club", result.filmSlug);
+            Assert.NotEmpty(result!.FilmId); // Letterboxd LID
+            Assert.Equal("550", result.TmdbId);
+            Assert.Contains("fight-club", result.FilmSlug);
 
             await Task.Delay(1000);
         }
@@ -33,9 +33,9 @@ namespace LetterboxdSync.Tests
             var result = await _api.SearchFilmByTmdbId(260513); // Incredibles 2
 
             Assert.NotNull(result);
-            Assert.NotEmpty(result!.filmId);
-            Assert.Equal("260513", result.tmdbId);
-            Assert.Contains("incredibles-2", result.filmSlug);
+            Assert.NotEmpty(result!.FilmId);
+            Assert.Equal("260513", result.TmdbId);
+            Assert.Contains("incredibles-2", result.FilmSlug);
 
             await Task.Delay(1000);
         }

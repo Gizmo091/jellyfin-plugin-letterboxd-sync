@@ -85,7 +85,9 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
                     _logger.LogError(
                         ex,
                         "Error syncing watchlist for user {Username} ({UserId}), Letterboxd user {LetterboxdUser}",
-                        user.Username, user.Id.ToString("N"), watchlistUsername);
+                        user.Username,
+                        user.Id.ToString("N"),
+                        watchlistUsername);
                 }
             }
 
@@ -102,7 +104,9 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
 
         _logger.LogInformation(
             "Syncing '{PlaylistName}' (input: {Input}) to Jellyfin user {UserId}",
-            target.DisplayName, watchlistInput, jellyfinUserId.ToString("N"));
+            target.DisplayName,
+            watchlistInput,
+            jellyfinUserId.ToString("N"));
 
         var api = new LetterboxdApi(_logger);
 
@@ -143,7 +147,7 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         }
 
         var watchlistTmdbIds = watchlistFilms
-            .Select(f => f.tmdbId)
+            .Select(f => f.TmdbId)
             .Where(id => !string.IsNullOrEmpty(id))
             .Select(id => id!)
             .ToHashSet();
@@ -151,7 +155,7 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         // Find matching movies in the Jellyfin library
         var allMovies = _libraryManager.GetItemList(new InternalItemsQuery
         {
-            IncludeItemTypes = [BaseItemKind.Movie],
+            IncludeItemTypes = new[] { BaseItemKind.Movie },
             IsVirtualItem = false,
             Recursive = true,
             HasTmdbId = true
@@ -165,7 +169,8 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         {
             _logger.LogInformation(
                 "No matching movies found in library for '{PlaylistName}' ({WatchlistCount} films in list)",
-                target.DisplayName, watchlistFilms.Count);
+                target.DisplayName,
+                watchlistFilms.Count);
             return;
         }
 
@@ -192,7 +197,9 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
 
             _logger.LogInformation(
                 "Created playlist '{PlaylistName}' with {Count} items for user {UserId}",
-                playlistName, matchedItems.Count, jellyfinUserId.ToString("N"));
+                playlistName,
+                matchedItems.Count,
+                jellyfinUserId.ToString("N"));
             return;
         }
 
@@ -207,7 +214,8 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         {
             _logger.LogInformation(
                 "Playlist '{PlaylistName}' is already up to date ({Count} items)",
-                playlistName, currentItemIds.Count);
+                playlistName,
+                currentItemIds.Count);
             return;
         }
 
@@ -218,7 +226,9 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
 
         _logger.LogInformation(
             "Added {AddCount} items to playlist '{PlaylistName}' (now {TotalCount} items)",
-            itemsToAdd.Count, playlistName, currentItemIds.Count + itemsToAdd.Count);
+            itemsToAdd.Count,
+            playlistName,
+            currentItemIds.Count + itemsToAdd.Count);
     }
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => new[]

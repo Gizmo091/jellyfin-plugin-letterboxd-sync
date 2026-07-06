@@ -56,10 +56,10 @@ namespace LetterboxdSync.Tests
 
             var film = await api.SearchFilmByTmdbId(550); // Fight Club
             Assert.NotNull(film);
-            Assert.NotEmpty(film!.filmId);
+            Assert.NotEmpty(film!.FilmId);
 
             // Create a diary entry (or 204 if it already exists), then delete it to keep the account tidy.
-            var logEntryId = await api.MarkAsWatched(film.filmId, DateTime.UtcNow.Date, tags: null, liked: false);
+            var logEntryId = await api.MarkAsWatched(film.FilmId, DateTime.UtcNow.Date, tags: null, liked: false);
 
             if (!string.IsNullOrEmpty(logEntryId))
             {
