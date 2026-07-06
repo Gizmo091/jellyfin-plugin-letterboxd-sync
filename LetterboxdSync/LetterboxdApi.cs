@@ -174,8 +174,9 @@ public class LetterboxdApi
 
         var (status, body) = await SendAsync(HttpMethod.Post, "/log-entries", null, content, json, auth: true).ConfigureAwait(false);
 
-        // 201 Created = logged (body is the new LogEntry); 204 No Content = already logged (idempotent).
-        if (status == HttpStatusCode.Created)
+        // 200 OK / 201 Created = logged (body is the new LogEntry); 204 No Content = already logged.
+        // Letterboxd returns 200 in practice even though the reference spec documents 201.
+        if (status is HttpStatusCode.OK or HttpStatusCode.Created)
         {
             try
             {
