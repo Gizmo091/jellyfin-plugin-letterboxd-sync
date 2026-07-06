@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -36,51 +37,76 @@ public class LetterboxdSyncController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> Authenticate([FromBody] Account body)
-    {
-        var api = new LetterboxdApi();
-        try
-        {
-            // If user provided pre-solved cookies (e.g., cf_clearance), inject them before attempting auth
-            if (!string.IsNullOrWhiteSpace(body.CookiesRaw))
-            {
-                api.SetRawCookies(body.CookiesRaw!);
-            }
+    public Task<ActionResult> Authenticate([FromBody] Account body)
+        => LinkCredentials(body);
 
-            await api.Authenticate(body.UserLetterboxd, body.PasswordLetterboxd).ConfigureAwait(false);
-            return Ok();
-        }
-        catch (Exception ex)
-        {
-            return Unauthorized(new { Message = ex.Message });
-        }
-    }
+    [HttpPost("Jellyfin.Plugin.LetterboxdSync/UserAuthenticate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public Task<ActionResult> UserAuthenticate([FromBody] Account body)
+        => LinkCredentials(body);
 
     [HttpGet("Jellyfin.Plugin.LetterboxdSync/UserConfig")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public ActionResult<Account> GetUserConfig()
+    public ActionResult GetUserConfig()
     {
-        var userId = GetCurrentUserId();
-        var userIdStr = userId.ToString("N");
+        var userIdStr = GetCurrentUserId().ToString("N");
 
-        var accounts = Plugin.Instance!.Configuration.Accounts;
-        var account = accounts.FirstOrDefault(a =>
+        var account = Plugin.Instance!.Configuration.Accounts.FirstOrDefault(a =>
             string.Equals(a.UserJellyfin, userIdStr, StringComparison.OrdinalIgnoreCase));
 
-        return Ok(account ?? new Account { UserJellyfin = userIdStr });
+        // Never expose secrets (refresh token / password) to the browser.
+        return Ok(new
+        {
+            userJellyfin = userIdStr,
+            userLetterboxd = account?.UserLetterboxd,
+            enable = account?.Enable ?? false,
+            sendFavorite = account?.SendFavorite ?? false,
+            enableDateFilter = account?.EnableDateFilter ?? false,
+            dateFilterDays = account?.DateFilterDays ?? 7,
+            watchlistUsernames = account?.WatchlistUsernames ?? new List<string>(),
+            isLinked = !string.IsNullOrWhiteSpace(account?.RefreshToken),
+        });
     }
 
     [HttpPost("Jellyfin.Plugin.LetterboxdSync/UserConfig")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public ActionResult SaveUserConfig([FromBody] Account body)
+    public async Task<ActionResult> SaveUserConfig([FromBody] Account body)
     {
-        var userId = GetCurrentUserId();
-        var userIdStr = userId.ToString("N");
+        var userIdStr = GetCurrentUserId().ToString("N");
 
-        // Force the UserJellyfin to the authenticated user's ID for security
+        // Force the account to the authenticated user's ID for security.
         body.UserJellyfin = userIdStr;
+
+        var existing = Plugin.Instance!.Configuration.Accounts.FirstOrDefault(a =>
+            string.Equals(a.UserJellyfin, userIdStr, StringComparison.OrdinalIgnoreCase));
+
+        // If a password was supplied, exchange it for a refresh token now; otherwise keep the
+        // previously linked token so the user can edit settings without re-entering credentials.
+        if (!string.IsNullOrWhiteSpace(body.PasswordLetterboxd) && !string.IsNullOrWhiteSpace(body.UserLetterboxd))
+        {
+            var api = new LetterboxdApi();
+            try
+            {
+                await api.AuthenticateWithPassword(body.UserLetterboxd!, body.PasswordLetterboxd!).ConfigureAwait(false);
+                body.RefreshToken = api.RefreshToken;
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { Message = ex.Message });
+            }
+        }
+        else
+        {
+            body.RefreshToken = existing?.RefreshToken;
+        }
+
+        // Never persist the plaintext password or legacy cookies.
+        body.PasswordLetterboxd = null;
+        body.CookiesRaw = null;
 
         lock (_configLock)
         {
@@ -94,22 +120,22 @@ public class LetterboxdSyncController : ControllerBase
         return Ok();
     }
 
-    [HttpPost("Jellyfin.Plugin.LetterboxdSync/UserAuthenticate")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> UserAuthenticate([FromBody] Account body)
+    /// <summary>Validates credentials by performing the OAuth grant and returns the resulting refresh token.</summary>
+    private async Task<ActionResult> LinkCredentials(Account body)
     {
         var api = new LetterboxdApi();
         try
         {
-            if (!string.IsNullOrWhiteSpace(body.CookiesRaw))
+            if (!string.IsNullOrWhiteSpace(body.RefreshToken))
             {
-                api.SetRawCookies(body.CookiesRaw!);
+                await api.AuthenticateWithRefreshToken(body.RefreshToken!).ConfigureAwait(false);
+            }
+            else
+            {
+                await api.AuthenticateWithPassword(body.UserLetterboxd ?? string.Empty, body.PasswordLetterboxd ?? string.Empty).ConfigureAwait(false);
             }
 
-            await api.Authenticate(body.UserLetterboxd, body.PasswordLetterboxd).ConfigureAwait(false);
-            return Ok();
+            return Ok(new { refreshToken = api.RefreshToken });
         }
         catch (Exception ex)
         {

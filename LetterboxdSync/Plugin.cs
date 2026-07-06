@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using LetterboxdSync.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -25,7 +22,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
-        InjectClientScript();
     }
 
     /// <inheritdoc />
@@ -67,40 +63,5 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 EmbeddedResourcePath = $"{GetType().Namespace}.Web.userConfigLetterboxd.js"
             }
         };
-    }
-
-    private void InjectClientScript()
-    {
-        try
-        {
-            RegisterWithFileTransformation();
-            Console.WriteLine("[LetterboxdSync] Registered with FileTransformation");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[LetterboxdSync] FileTransformation plugin is not installed. The Letterboxd sidebar menu will not be available for non-admin users. Install FileTransformation from: https://github.com/danieladov/jellyfin-plugin-file-transformation");
-            Console.WriteLine($"[LetterboxdSync] FileTransformation error: {ex.Message}");
-        }
-    }
-
-    private void RegisterWithFileTransformation()
-    {
-        var payload = new
-        {
-            id = Id,
-            fileNamePattern = "index.html",
-            callbackAssembly = "LetterboxdSync",
-            callbackClass = "LetterboxdSync.IndexHtmlTransformer",
-            callbackMethod = "TransformIndexHtml"
-        };
-
-        var json = JsonSerializer.Serialize(payload);
-
-        using var client = new HttpClient();
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = client.PostAsync(
-            "http://localhost:8096/FileTransformation/RegisterTransformation",
-            content).Result;
-        response.EnsureSuccessStatusCode();
     }
 }

@@ -3,7 +3,18 @@ obj/
 .vs/
 .idea/
 artifacts
+# macOS
 .DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.lnk
+
+# Linux
+*~
+.directory
 build.sh
 
 .idea

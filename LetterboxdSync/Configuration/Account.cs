@@ -9,8 +9,19 @@ public class Account
 
     public string? UserLetterboxd { get; set; }
 
+    /// <summary>
+    /// Transient Letterboxd password. Only used to obtain a <see cref="RefreshToken"/> and is
+    /// cleared before the account is persisted — it is never stored on disk.
+    /// </summary>
     public string? PasswordLetterboxd { get; set; }
 
+    /// <summary>
+    /// Long-lived OAuth2 refresh token obtained from Letterboxd. This is what the plugin stores and
+    /// uses to authenticate; it only expires if Letterboxd explicitly revokes it.
+    /// </summary>
+    public string? RefreshToken { get; set; }
+
+    /// <summary>Deprecated. Kept only for backwards-compatible deserialization of old configs.</summary>
     public string? CookiesRaw { get; set; }
 
     public bool Enable { get; set; }

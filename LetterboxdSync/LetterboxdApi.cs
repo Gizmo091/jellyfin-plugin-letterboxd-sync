@@ -5,657 +5,381 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 
 namespace LetterboxdSync;
 
+/// <summary>
+/// Thin client for the official Letterboxd REST API (api.letterboxd.com).
+/// Replaces the old HTML-scraping implementation which was blocked by Cloudflare.
+/// See docs/LETTERBOXD_API.md for protocol details and how to re-extract the app key if it rotates.
+/// </summary>
 public class LetterboxdApi
 {
-    private string csrf = string.Empty;
-    private string username = string.Empty;
+    // First-party application credentials, extracted from the official Letterboxd Android app.
+    // The API requires every request to be signed with these (apikey + HMAC-SHA256 signature).
+    // If these stop working (401 "invalid API key or computed signature"), see docs/LETTERBOXD_API.md §3.
+    private const string ApiKey = "ebe3d27ec52a35fc8d1835c6531c37bd72b7a54337666d5bd759379b72ae16f0";
+    private static readonly byte[] ApiSecret = Encoding.ASCII.GetBytes("c60ce045d25bc90cb56026a8dd621eebeef995cbecc51951192da75348c977cd");
+    private const string BaseUrl = "https://api.letterboxd.com/api/v0";
+
+    private static readonly HttpClient Client = CreateClient();
+
     private readonly ILogger? _logger;
 
-    public string Csrf => csrf;
-
-    // Reused for the lifetime of this LetterboxdApi instance (one sync run)
-    private readonly CookieContainer cookieContainer = new CookieContainer();
-    private readonly HttpClientHandler handler;
-    private readonly HttpClient client;
-
-    private static readonly Uri BaseUri = new Uri("https://letterboxd.com/");
-
-    private bool HasCookie(string name)
-    {
-        var cookies = cookieContainer.GetCookies(BaseUri);
-        return !string.IsNullOrWhiteSpace(cookies[name]?.Value);
-    }
-
-    private bool HasAuthenticatedSession()
-    {
-        var cookies = cookieContainer.GetCookies(new Uri("https://letterboxd.com/"));
-        return !string.IsNullOrWhiteSpace(cookies["letterboxd.user.CURRENT"]?.Value);
-    }
-
-    public void SetRawCookies(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return;
-
-        var baseUri = new Uri("https://letterboxd.com/");
-        // Split cookie header like: name=value; name2=value2; ...
-        foreach (var part in raw.Split(';'))
-        {
-            var kv = part.Trim();
-            if (string.IsNullOrEmpty(kv)) continue;
-            var eq = kv.IndexOf('=');
-            if (eq <= 0) continue;
-            var name = kv.Substring(0, eq).Trim();
-            var val = kv.Substring(eq + 1).Trim();
-            try
-            {
-                // URL-decode value if needed
-                val = WebUtility.UrlDecode(val);
-                var cookie = new Cookie(name, val, "/", "letterboxd.com")
-                {
-                    HttpOnly = false,
-                };
-                cookieContainer.Add(baseUri, cookie);
-
-                var dotCookie = new Cookie(name, val, "/", ".letterboxd.com")
-                {
-                    HttpOnly = false,
-                };
-                cookieContainer.Add(baseUri, dotCookie);
-
-                if (string.Equals(name, "com.xk72.webparts.csrf", StringComparison.OrdinalIgnoreCase))
-                {
-                    this.csrf = val;
-                }
-            }
-            catch
-            {
-                // ignore malformed cookie entries
-            }
-        }
-    }
-
-    private async Task RefreshCsrfFromFilmPageAsync(string filmSlug)
-    {
-        // Film page typically contains the CSRF token expected by actions related to that film.
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"/film/{filmSlug}/");
-        SetNavigationHeaders(request.Headers, "same-origin");
-        using var response = await client.SendAsync(request).ConfigureAwait(false);
-        var html = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-        var fresh = ExtractHiddenInput(html, "__csrf");
-        if (string.IsNullOrWhiteSpace(fresh))
-            throw new Exception($"Could not extract __csrf from film page /film/{filmSlug}/");
-
-        this.csrf = fresh!;
-    }
-
-
-    private string GetCsrfFromCookie()
-    {
-        var cookies = cookieContainer.GetCookies(new Uri("https://letterboxd.com/"));
-        // This is the token Letterboxd expects in the "__csrf" form field
-        return cookies["com.xk72.webparts.csrf"]?.Value ?? string.Empty;
-    }
-
-    private async Task RefreshCsrfCookieAsync()
-    {
-        // Touch a page to ensure the CSRF cookie exists / is fresh
-        using (var request = new HttpRequestMessage(HttpMethod.Get, "/"))
-        {
-            SetNavigationHeaders(request.Headers);
-            using var _ = await client.SendAsync(request).ConfigureAwait(false);
-        }
-
-        var token = GetCsrfFromCookie();
-        if (string.IsNullOrWhiteSpace(token))
-            throw new Exception("Could not read CSRF cookie 'com.xk72.webparts.csrf' after refreshing.");
-        this.csrf = token;
-    }
+    private string? _accessToken;
+    private string? _refreshToken;
 
     public LetterboxdApi(ILogger? logger = null)
     {
         _logger = logger;
-        handler = new HttpClientHandler
-        {
-            CookieContainer = cookieContainer,
-            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
-            AllowAutoRedirect = true
-        };
-
-        client = new HttpClient(handler)
-        {
-            BaseAddress = new Uri("https://letterboxd.com")
-        };
-
-        // Use a Firefox UA if you're copying cookies from Firefox.
-        client.DefaultRequestHeaders.UserAgent.Clear();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0");
-
-        // Keep headers minimal. Sending Chrome-only "sec-ch-ua" headers while claiming Firefox
-        // can make bot detection more likely.
-        client.DefaultRequestHeaders.Accept.Clear();
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xhtml+xml"));
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml", 0.9));
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*", 0.8));
-        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br");
-        client.DefaultRequestHeaders.Connection.Add("keep-alive");
-
-        // Remove these (they were Chrome-specific):
-        // client.DefaultRequestHeaders.TryAddWithoutValidation("sec-ch-ua", ...);
-        // client.DefaultRequestHeaders.TryAddWithoutValidation("sec-ch-ua-mobile", ...);
-        // client.DefaultRequestHeaders.TryAddWithoutValidation("sec-ch-ua-platform", ...);
-        client.DefaultRequestHeaders.TryAddWithoutValidation("sec-fetch-dest", "document");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("sec-fetch-mode", "navigate");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("sec-fetch-site", "none");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("sec-fetch-user", "?1");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("upgrade-insecure-requests", "1");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Priority", "u=0, i");
     }
 
-    private void SetNavigationHeaders(HttpRequestHeaders headers, string site = "none", string? referrer = null)
+    /// <summary>Gets the current refresh token (populated after authentication). Persist it to avoid re-login.</summary>
+    public string? RefreshToken => _refreshToken;
+
+    /// <summary>Gets a value indicating whether a member access token is available.</summary>
+    public bool IsAuthenticated => !string.IsNullOrEmpty(_accessToken);
+
+    private static HttpClient CreateClient()
     {
-        headers.Accept.Clear();
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xhtml+xml"));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml", 0.9));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/avif"));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/webp"));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("image/apng"));
-        headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*", 0.8));
-
-        headers.TryAddWithoutValidation("sec-fetch-dest", "document");
-        headers.TryAddWithoutValidation("sec-fetch-mode", "navigate");
-        headers.TryAddWithoutValidation("sec-fetch-site", site);
-        headers.TryAddWithoutValidation("sec-fetch-user", "?1");
-        headers.TryAddWithoutValidation("upgrade-insecure-requests", "1");
-
-        // Use the same Priority header consistently
-        if (headers.Contains("Priority")) headers.Remove("Priority");
-        headers.TryAddWithoutValidation("Priority", "u=0, i");
-
-        if (referrer != null)
+        var handler = new HttpClientHandler
         {
-            headers.Referrer = new Uri(referrer);
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+        };
+
+        var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Letterboxd-JellyfinSync/2.0");
+        return client;
+    }
+
+    // ===== Authentication ========================================================================
+
+    /// <summary>Authenticate with Letterboxd username + password (OAuth2 password grant).</summary>
+    public Task AuthenticateWithPassword(string username, string password)
+    {
+        var form = $"grant_type=password&username={Uri.EscapeDataString(username)}&password={Uri.EscapeDataString(password)}";
+        return RequestTokenAsync(form);
+    }
+
+    /// <summary>Exchange a stored refresh token for a fresh access token (OAuth2 refresh grant).</summary>
+    public Task AuthenticateWithRefreshToken(string refreshToken)
+    {
+        var form = $"grant_type=refresh_token&refresh_token={Uri.EscapeDataString(refreshToken)}";
+        return RequestTokenAsync(form);
+    }
+
+    private async Task RequestTokenAsync(string form)
+    {
+        using var content = new StringContent(form, Encoding.UTF8);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+
+        var (status, body) = await SendAsync(HttpMethod.Post, "/auth/token", null, content, form, auth: false).ConfigureAwait(false);
+
+        if (status != HttpStatusCode.OK)
+        {
+            throw new LetterboxdApiException($"Letterboxd authentication failed ({(int)status}). {ExtractError(body)}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+        _accessToken = root.TryGetProperty("access_token", out var at) ? at.GetString() : null;
+        if (root.TryGetProperty("refresh_token", out var rt))
+        {
+            _refreshToken = rt.GetString();
+        }
+
+        if (string.IsNullOrEmpty(_accessToken))
+        {
+            throw new LetterboxdApiException("Letterboxd authentication succeeded but returned no access token.");
         }
     }
 
-    public async Task Authenticate(string username, string password)
-    {
-        this.username = username;
+    // ===== Films =================================================================================
 
-        // If user injected real browser cookies, don't try the login POST (Cloudflare blocks it).
-        if (HasAuthenticatedSession())
+    /// <summary>Resolve a TMDB id to a Letterboxd film. Returns null if no film matches.</summary>
+    public async Task<FilmResult?> SearchFilmByTmdbId(int tmdbId)
+    {
+        var query = new List<KeyValuePair<string, string>>
+        {
+            new("filmId", $"tmdb:{tmdbId.ToString(CultureInfo.InvariantCulture)}"),
+            new("perPage", "1"),
+        };
+
+        var (status, body) = await SendAsync(HttpMethod.Get, "/films", query, null, string.Empty, auth: IsAuthenticated).ConfigureAwait(false);
+
+        if (status != HttpStatusCode.OK)
+        {
+            throw new LetterboxdApiException($"Letterboxd film lookup failed ({(int)status}) for tmdb:{tmdbId}. {ExtractError(body)}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        if (!doc.RootElement.TryGetProperty("items", out var items) || items.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        return ParseFilmSummary(items[0], tmdbId.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Create a diary entry (mark a film as watched) via POST /log-entries.
+    /// The API is idempotent: a 204 response means the entry already existed.
+    /// Returns the created log entry LID, or null if the entry already existed (204).
+    /// </summary>
+    public async Task<string?> MarkAsWatched(string filmId, DateTime? date, string[]? tags, bool liked = false, double rating = 0)
+    {
+        if (!IsAuthenticated)
+        {
+            throw new LetterboxdApiException("Cannot log a film without an authenticated member (call AuthenticateWith* first).");
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["filmId"] = filmId,
+        };
+
+        if (date != null)
+        {
+            payload["diaryDetails"] = new Dictionary<string, object?>
+            {
+                ["diaryDate"] = date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["rewatch"] = false,
+            };
+        }
+
+        if (liked)
+        {
+            payload["like"] = true;
+        }
+
+        if (rating >= 0.5)
+        {
+            payload["rating"] = rating;
+        }
+
+        var cleanTags = tags?.Where(t => !string.IsNullOrWhiteSpace(t)).ToArray();
+        if (cleanTags is { Length: > 0 })
+        {
+            payload["tags"] = cleanTags;
+        }
+
+        var json = JsonSerializer.Serialize(payload);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var (status, body) = await SendAsync(HttpMethod.Post, "/log-entries", null, content, json, auth: true).ConfigureAwait(false);
+
+        // 201 Created = logged (body is the new LogEntry); 204 No Content = already logged (idempotent).
+        if (status == HttpStatusCode.Created)
         {
             try
             {
-                await RefreshCsrfCookieAsync().ConfigureAwait(false);
-                return;
+                using var doc = JsonDocument.Parse(body);
+                return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
             }
-            catch
+            catch (JsonException)
             {
-                // If refreshing CSRF fails (e.g. cookies expired), proceed to normal login.
-            }
-        }
-
-        // 0) Initial delay to avoid "speeding"
-        await Task.Delay(500 + Random.Shared.Next(1000)).ConfigureAwait(false);
-
-        // 1) GET /sign-in/ to obtain cookies + __csrf
-        using (var signInRequest = new HttpRequestMessage(HttpMethod.Get, "/sign-in/"))
-        {
-            SetNavigationHeaders(signInRequest.Headers);
-
-            using (var signInResponse = await client.SendAsync(signInRequest).ConfigureAwait(false))
-            {
-                if (signInResponse.StatusCode == HttpStatusCode.Forbidden)
-                {
-                    // If user injected Cloudflare clearance cookie, warm up and retry once
-                    if (cookieContainer.GetCookies(new Uri("https://letterboxd.com/")).Cast<Cookie>().Any(c => c.Name.Equals("cf_clearance", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        await Task.Delay(1500).ConfigureAwait(false);
-                        using var warmup = new HttpRequestMessage(HttpMethod.Get, "/");
-                        SetNavigationHeaders(warmup.Headers);
-                        using var _ = await client.SendAsync(warmup).ConfigureAwait(false);
-
-                        using var retryReq = new HttpRequestMessage(HttpMethod.Get, "/sign-in/");
-                        SetNavigationHeaders(retryReq.Headers);
-                        using var retryRes = await client.SendAsync(retryReq).ConfigureAwait(false);
-                        if (retryRes.StatusCode == HttpStatusCode.Forbidden)
-                        {
-                            var rbody = await retryRes.Content.ReadAsStringAsync().ConfigureAwait(false);
-                            if (rbody.Length > 300) rbody = rbody.Substring(0, 300);
-                            throw new Exception("Letterboxd returned 403 on /sign-in/ even after using provided Cloudflare cookies. Body: " + rbody);
-                        }
-
-                        var retryHtml = await retryRes.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        var csrfFromRetry = ExtractHiddenInput(retryHtml, "__csrf");
-                        if (string.IsNullOrWhiteSpace(csrfFromRetry))
-                            throw new Exception("Could not find __csrf token on /sign-in/ after retry.");
-                        this.csrf = csrfFromRetry;
-                        goto AfterSignIn;
-                    }
-
-                    var body = await signInResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    throw new Exception(
-                        "Letterboxd returned 403 on /sign-in/. This is likely Cloudflare protection. " +
-                        "Body: " + body);
-                }
-
-                if (signInResponse.StatusCode != HttpStatusCode.OK)
-                {
-                    var body = await signInResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    throw new Exception($"Letterboxd returned {(int)signInResponse.StatusCode} on /sign-in/. Body: " + body);
-                }
-
-                var signInHtml = await signInResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var csrfFromSignIn = ExtractHiddenInput(signInHtml, "__csrf");
-                if (string.IsNullOrWhiteSpace(csrfFromSignIn))
-                {
-                    throw new Exception("Could not find __csrf token on /sign-in/ (login flow likely changed).");
-                }
-
-                this.csrf = csrfFromSignIn;
-            }
-        }
-        AfterSignIn:;
-
-        // 2) POST /user/login.do with credentials + __csrf
-        await Task.Delay(3000 + Random.Shared.Next(4000)).ConfigureAwait(false); // Mimic human typing/thinking time
-        using (var loginRequest = new HttpRequestMessage(HttpMethod.Post, "/user/login.do"))
-        {
-            loginRequest.Headers.Accept.Clear();
-            loginRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            loginRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/javascript"));
-            loginRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*", 0.01));
-            loginRequest.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
-
-            loginRequest.Headers.Referrer = new Uri("https://letterboxd.com/sign-in/");
-            loginRequest.Headers.TryAddWithoutValidation("Origin", "https://letterboxd.com");
-            loginRequest.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
-            loginRequest.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
-            loginRequest.Headers.TryAddWithoutValidation("sec-fetch-site", "same-origin");
-            loginRequest.Headers.TryAddWithoutValidation("Priority", "u=1, i");
-            loginRequest.Headers.Remove("sec-fetch-user");
-            loginRequest.Headers.Remove("upgrade-insecure-requests");
-
-            loginRequest.Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                { "username", username },
-                { "password", password },
-                { "__csrf", this.csrf },
-                { "remember", "true" },
-                { "authenticationCode", "" }
-            });
-
-            // Ensure all previously set cookies are sent.
-            // CookieContainer handles this automatically as long as it's the same client/handler.
-            
-            using (var loginResponse = await client.SendAsync(loginRequest).ConfigureAwait(false))
-            {
-                if (loginResponse.StatusCode == HttpStatusCode.Forbidden)
-                {
-                    var body = await loginResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    throw new Exception(
-                        "Letterboxd returned 403 during login. This is likely reCAPTCHA/anti-bot enforcement. " +
-                        "Body: " + body
-                    );
-                }
-
-                if (!loginResponse.IsSuccessStatusCode)
-                {
-                    var body = await loginResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    throw new Exception($"Letterboxd returned {(int)loginResponse.StatusCode} during login. Body: " + body);
-                }
-
-                var loginBody = await loginResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                using (JsonDocument doc = JsonDocument.Parse(loginBody))
-                {
-                    var json = doc.RootElement;
-                    if (json.TryGetProperty("result", out var resultEl) && resultEl.GetString() == "error")
-                    {
-                        var msg = "Login failed";
-                        if (json.TryGetProperty("messages", out var msgsEl))
-                        {
-                            var sb = new StringBuilder();
-                            foreach (var m in msgsEl.EnumerateArray())
-                                sb.Append(m.GetString()).Append(' ');
-                            msg = sb.ToString().Trim();
-                        }
-                        throw new Exception("Letterboxd login error: " + msg);
-                    }
-                }
+                return null;
             }
         }
 
-        // 3) Refresh CSRF cookie after login
-        await RefreshCsrfCookieAsync().ConfigureAwait(false);
+        if (status == HttpStatusCode.NoContent)
+        {
+            return null;
+        }
 
-        // 4) Refresh CSRF after login (best-effort)
-        // Some sites rotate CSRF tokens; we try to extract it from the homepage.
-        try
-        {
-            using var homeRequest = new HttpRequestMessage(HttpMethod.Get, "/");
-            SetNavigationHeaders(homeRequest.Headers, "same-origin", "https://letterboxd.com/sign-in/");
-            using var homeResponse = await client.SendAsync(homeRequest).ConfigureAwait(false);
-            var homeHtml = await homeResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-            var csrfAfter = ExtractHiddenInput(homeHtml, "__csrf");
-            if (!string.IsNullOrWhiteSpace(csrfAfter))
-                this.csrf = csrfAfter;
-        }
-        catch
-        {
-            // Keep the sign-in csrf if this fails.
-        }
+        throw new LetterboxdApiException($"Letterboxd log-entry failed ({(int)status}). {ExtractError(body)}");
     }
 
-    public async Task<FilmResult> SearchFilmByTmdbId(int tmdbid)
+    /// <summary>Delete a log entry by its LID (used for cleanup in integration tests).</summary>
+    public async Task DeleteLogEntry(string logEntryId)
     {
-        // Add a small initial delay to avoid bursting
-        await Task.Delay(500 + Random.Shared.Next(500)).ConfigureAwait(false);
-
-        // Reuse the authenticated client + cookies from Authenticate.
-        var tmdbPath = $"/tmdb/{tmdbid}";
-
-        using (var searchRequest = new HttpRequestMessage(HttpMethod.Get, tmdbPath))
+        if (!IsAuthenticated)
         {
-            SetNavigationHeaders(searchRequest.Headers, "same-origin");
-
-            using (var res = await client.SendAsync(searchRequest).ConfigureAwait(false))
-            {
-                if (res.StatusCode == HttpStatusCode.Forbidden)
-                {
-                    var body = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    
-                    // If we got a 403, it's likely Cloudflare blocking automated lookups.
-                    // We'll throw but suggest raw cookies/delays in the log elsewhere.
-                    throw new Exception($"TMDB lookup returned 403 (Forbidden) for https://letterboxd.com/tmdb/{tmdbid}. This usually means Cloudflare is blocking the request. Body: " + body);
-                }
-
-                if (!res.IsSuccessStatusCode)
-                {
-                    var body = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (body.Length > 300) body = body.Substring(0, 300);
-                    throw new Exception($"TMDB lookup returned {(int)res.StatusCode} for https://letterboxd.com/tmdb/{tmdbid}. Body: " + body);
-                }
-
-                // IMPORTANT:
-                // Letterboxd may not 302 redirect here anymore; the final RequestUri can remain /tmdb/<id>.
-                // So we parse the returned HTML to find a film link / canonical URL.
-                var html = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                var htmlDoc = new HtmlDocument();
-                htmlDoc.LoadHtml(html);
-
-                // Best case: canonical link points at the film page.
-                string filmUrl = htmlDoc.DocumentNode
-                    .SelectSingleNode("//link[@rel='canonical']")
-                    ?.GetAttributeValue("href", string.Empty) ?? string.Empty;
-
-                // Fallback: any anchor to /film/<slug>/
-                if (string.IsNullOrWhiteSpace(filmUrl))
-                {
-                    var a = htmlDoc.DocumentNode.SelectSingleNode("//a[starts-with(@href, '/film/')]");
-                    var href = a?.GetAttributeValue("href", string.Empty) ?? string.Empty;
-
-                    if (!string.IsNullOrWhiteSpace(href))
-                        filmUrl = href.StartsWith("/") ? "https://letterboxd.com" + href : href;
-                }
-
-                if (string.IsNullOrWhiteSpace(filmUrl))
-                {
-                    // Helpful debug: show what URL we actually fetched/ended at
-                    var finalUri = res?.RequestMessage?.RequestUri?.ToString() ?? string.Empty;
-                    throw new Exception($"The search returned no results (Could not resolve film URL from TMDB page). FinalUrl='{finalUri}'");
-                }
-
-                // Extract slug from film URL
-                var filmUri = new Uri(filmUrl, UriKind.Absolute);
-                var segments = filmUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-                if (segments.Length < 2 || !segments[0].Equals("film", StringComparison.OrdinalIgnoreCase))
-                    throw new Exception($"TMDB page resolved to non-film URL: '{filmUrl}'");
-
-                string filmSlug = segments[1];
-
-                // Load film page and extract filmId
-                using (var filmRequest = new HttpRequestMessage(HttpMethod.Get, $"/film/{filmSlug}/"))
-                {
-                    SetNavigationHeaders(filmRequest.Headers, "same-origin", $"https://letterboxd.com/tmdb/{tmdbid}");
-                    using (var filmRes = await client.SendAsync(filmRequest).ConfigureAwait(false))
-                    {
-                        if (!filmRes.IsSuccessStatusCode)
-                        {
-                            var body = await filmRes.Content.ReadAsStringAsync().ConfigureAwait(false);
-                            if (body.Length > 300) body = body.Substring(0, 300);
-                            throw new Exception($"Film page lookup returned {(int)filmRes.StatusCode} for https://letterboxd.com/film/{filmSlug}/. Body: " + body);
-                        }
-
-                        var filmHtml = await filmRes.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        var filmDoc = new HtmlDocument();
-                        filmDoc.LoadHtml(filmHtml);
-
-                        HtmlNode? elForId =
-                            filmDoc.DocumentNode.SelectSingleNode($"//div[@data-film-slug='{filmSlug}']") ??
-                            filmDoc.DocumentNode.SelectSingleNode($"//div[@data-item-link='/film/{filmSlug}/']") ??
-                            filmDoc.DocumentNode.SelectSingleNode("//div[@data-film-id]");
-
-                        if (elForId == null)
-                            throw new Exception("The search returned no results (No html element found to get letterboxd filmId)");
-
-                        string filmId = elForId.GetAttributeValue("data-film-id", string.Empty);
-                        if (string.IsNullOrEmpty(filmId))
-                            throw new Exception("The search returned no results (data-film-id attribute is empty)");
-
-                        return new FilmResult(filmSlug, filmId);
-                    }
-                }
-            }
+            throw new LetterboxdApiException("Cannot delete a log entry without an authenticated member.");
         }
+
+        var (status, body) = await SendAsync(HttpMethod.Delete, $"/log-entry/{logEntryId}", null, null, string.Empty, auth: true).ConfigureAwait(false);
+
+        if (status is HttpStatusCode.OK or HttpStatusCode.NoContent)
+        {
+            return;
+        }
+
+        throw new LetterboxdApiException($"Letterboxd delete log-entry failed ({(int)status}). {ExtractError(body)}");
     }
 
+    // ===== Watchlists / lists ====================================================================
 
-    public async Task MarkAsWatched(string filmSlug, string filmId, DateTime? date, string[] tags, bool liked = false)
+    /// <summary>Get all films on a member's public watchlist (paginated), as film results carrying TMDB ids.</summary>
+    public Task<List<FilmResult>> GetWatchlist(string memberId)
+        => GetPagedFilms($"/member/{memberId}/watchlist", film => film);
+
+    /// <summary>Get all films in a list (paginated). List entries wrap a film summary.</summary>
+    public Task<List<FilmResult>> GetListEntries(string listId)
+        => GetPagedFilms($"/list/{listId}/entries", entry => entry.TryGetProperty("film", out var film) ? film : entry);
+
+    private async Task<List<FilmResult>> GetPagedFilms(string path, Func<JsonElement, JsonElement> filmSelector)
     {
-        string url = "/s/save-diary-entry";
-        DateTime viewingDate = date == null ? DateTime.Now : (DateTime)date;
+        var results = new List<FilmResult>();
+        string? cursor = null;
 
-        for (int attempt = 0; attempt < 3; attempt++)
+        do
         {
-            // IMPORTANT: Refresh CSRF from the film page (scoped token).
-            await RefreshCsrfCookieAsync().ConfigureAwait(false);
-
-            using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+            var query = new List<KeyValuePair<string, string>> { new("perPage", "100") };
+            if (!string.IsNullOrEmpty(cursor))
             {
-                // Make the request look like the browser flow for this action
-                request.Headers.Referrer = new Uri($"https://letterboxd.com/film/{filmSlug}/");
-                request.Headers.TryAddWithoutValidation("Origin", "https://letterboxd.com");
-                request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
-                request.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
-                request.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
-                request.Headers.TryAddWithoutValidation("sec-fetch-site", "same-origin");
-                request.Headers.Remove("sec-fetch-user");
-                request.Headers.Remove("upgrade-insecure-requests");
-                request.Headers.Accept.Clear();
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/javascript"));
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*", 0.01));
+                query.Add(new("cursor", cursor));
+            }
 
-                request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            var (status, body) = await SendAsync(HttpMethod.Get, path, query, null, string.Empty, auth: IsAuthenticated).ConfigureAwait(false);
+
+            if (status != HttpStatusCode.OK)
+            {
+                throw new LetterboxdApiException($"Letterboxd list read failed ({(int)status}) for {path}. {ExtractError(body)}");
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("items", out var items))
+            {
+                foreach (var item in items.EnumerateArray())
                 {
-                    { "__csrf", this.csrf },
-                    { "json", "true" },
-                    { "viewingId", string.Empty },
-                    { "filmId", filmId },
-                    { "specifiedDate", date == null ? "false" : "true" },
-                    { "viewingDateStr", viewingDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
-                    { "review", string.Empty },
-                    { "tags", date != null && tags.Length > 0 ? $"[{string.Join(",", tags)}]" : string.Empty },
-                    { "rating", "0" },
-                    { "liked", liked.ToString().ToLowerInvariant() } // some endpoints are picky about casing
-                });
+                    var film = filmSelector(item);
+                    if (film.ValueKind == JsonValueKind.Object)
+                    {
+                        results.Add(ParseFilmSummary(film));
+                    }
+                }
+            }
 
-                using (var response = await client.SendAsync(request).ConfigureAwait(false))
+            cursor = root.TryGetProperty("next", out var next) && next.ValueKind == JsonValueKind.String ? next.GetString() : null;
+
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                await Task.Delay(500 + Random.Shared.Next(500)).ConfigureAwait(false);
+            }
+        }
+        while (!string.IsNullOrEmpty(cursor));
+
+        return results;
+    }
+
+    /// <summary>Resolve a Letterboxd username to its member LID via search. Returns null if not found.</summary>
+    public async Task<string?> ResolveMemberId(string username)
+    {
+        var item = await SearchFirst(username, "MemberSearchItem").ConfigureAwait(false);
+        if (item == null)
+        {
+            return null;
+        }
+
+        return item.Value.TryGetProperty("member", out var member) && member.TryGetProperty("id", out var id)
+            ? id.GetString()
+            : null;
+    }
+
+    /// <summary>Resolve a username + list slug to a list LID via search. Best-effort. Returns null if not found.</summary>
+    public async Task<string?> ResolveListId(string username, string listSlug)
+    {
+        var expectedPath = $"/{username}/list/{listSlug}/".ToLowerInvariant();
+        var searchTerm = listSlug.Replace('-', ' ');
+
+        var query = new List<KeyValuePair<string, string>>
+        {
+            new("input", searchTerm),
+            new("searchMethod", "Autocomplete"),
+            new("include", "ListSearchItem"),
+            new("perPage", "10"),
+        };
+
+        var (status, body) = await SendAsync(HttpMethod.Get, "/search", query, null, string.Empty, auth: IsAuthenticated).ConfigureAwait(false);
+        if (status != HttpStatusCode.OK)
+        {
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        if (!doc.RootElement.TryGetProperty("items", out var items))
+        {
+            return null;
+        }
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (!item.TryGetProperty("list", out var list))
+            {
+                continue;
+            }
+
+            // Match by the list's canonical Letterboxd URL path (/{username}/list/{slug}/).
+            if (list.TryGetProperty("links", out var links))
+            {
+                foreach (var link in links.EnumerateArray())
                 {
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    var bodyPreview = body.Length > 300 ? body.Substring(0, 300) : body;
-                    if (response.StatusCode == HttpStatusCode.Forbidden)
+                    if (link.TryGetProperty("type", out var t) && t.GetString() == "letterboxd"
+                        && link.TryGetProperty("url", out var urlEl)
+                        && Uri.TryCreate(urlEl.GetString(), UriKind.Absolute, out var url)
+                        && url.AbsolutePath.ToLowerInvariant().TrimEnd('/').Equals(expectedPath.TrimEnd('/'), StringComparison.Ordinal))
                     {
-                        throw new Exception(
-                            "Letterboxd returned 403 during diary submission. This is likely reCAPTCHA/anti-bot enforcement. " +
-                            "Body: " + bodyPreview
-                        );
-                    }
-                    if (response.StatusCode != HttpStatusCode.OK)
-                    {
-                        throw new Exception($"Letterboxd returned {(int)response.StatusCode}. Body: " + bodyPreview);
-                    }
-
-                    using (JsonDocument doc = JsonDocument.Parse(body))
-                    {
-                        var json = doc.RootElement;
-
-                        // If response includes rotated CSRF, keep it
-                        if (json.TryGetProperty("csrf", out var csrfEl) && csrfEl.ValueKind == JsonValueKind.String)
-                        {
-                            var newCsrf = csrfEl.GetString();
-                            if (!string.IsNullOrWhiteSpace(newCsrf))
-                                this.csrf = newCsrf!;
-                        }
-
-                        if (SuccessOperation(json, out string message))
-                            return;
-
-                        // Retry on transient errors (expired CSRF, rate-limiting)
-                        if (attempt < 2 &&
-                            (message.Contains("expired", StringComparison.OrdinalIgnoreCase) ||
-                             message.Contains("try again", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            var delayMs = (attempt + 1) * 5000 + Random.Shared.Next(3000);
-                            _logger?.LogWarning("Transient error on attempt {Attempt} for film {FilmSlug}: \"{Message}\". Retrying in {Delay}ms...",
-                                attempt + 1, filmSlug, message, delayMs);
-                            await Task.Delay(delayMs).ConfigureAwait(false);
-                            continue;
-                        }
-
-                        throw new Exception(message);
+                        return list.TryGetProperty("id", out var id) ? id.GetString() : null;
                     }
                 }
             }
         }
 
-        throw new Exception("Failed to submit diary entry after retries.");
+        return null;
     }
 
-
-
-
-    public async Task<DateTime?> GetDateLastLog(string filmSlug)
+    private async Task<JsonElement?> SearchFirst(string input, string include)
     {
-        // Uses same authenticated cookie container via client.
-        string url = $"/{this.username}/film/{filmSlug}/diary/";
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        SetNavigationHeaders(request.Headers, "same-origin");
-        using var response = await client.SendAsync(request).ConfigureAwait(false);
-        var responseHtml = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-        var htmlDoc = new HtmlDocument();
-        htmlDoc.LoadHtml(responseHtml);
-
-        var monthElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'month')]");
-        var dayElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'date') or contains(@class, 'daydate')]");
-        var yearElements = htmlDoc.DocumentNode.SelectNodes("//a[contains(@class, 'year')]");
-
-        var lstDates = new List<DateTime>();
-
-        if (monthElements != null && dayElements != null && yearElements != null)
+        var query = new List<KeyValuePair<string, string>>
         {
-            var minCount = Math.Min(Math.Min(monthElements.Count, dayElements.Count), yearElements.Count);
+            new("input", input),
+            new("searchMethod", "Autocomplete"),
+            new("include", include),
+            new("perPage", "5"),
+        };
 
-            for (int i = 0; i < minCount; i++)
-            {
-                var month = monthElements[i].InnerText?.Trim();
-                var day = dayElements[i].InnerText?.Trim();
-                var year = yearElements[i].InnerText?.Trim();
-
-                if (!string.IsNullOrEmpty(month) && !string.IsNullOrEmpty(day) && !string.IsNullOrEmpty(year))
-                {
-                    var dateString = $"{day} {month} {year}";
-                    if (DateTime.TryParse(dateString, out DateTime parsedDate))
-                        lstDates.Add(parsedDate);
-                }
-            }
+        var (status, body) = await SendAsync(HttpMethod.Get, "/search", query, null, string.Empty, auth: IsAuthenticated).ConfigureAwait(false);
+        if (status != HttpStatusCode.OK)
+        {
+            return null;
         }
 
-        return lstDates.Count > 0 ? lstDates.Max() : null;
+        using var doc = JsonDocument.Parse(body);
+        if (doc.RootElement.TryGetProperty("items", out var items) && items.GetArrayLength() > 0)
+        {
+            // Clone so the element stays valid after the JsonDocument is disposed.
+            return items[0].Clone();
+        }
+
+        return null;
     }
 
-    private bool SuccessOperation(JsonElement json, out string message)
-    {
-        message = string.Empty;
+    // ===== Watchlist input parsing (shared with the watchlist sync task) =========================
 
-        if (json.TryGetProperty("messages", out JsonElement messagesElement))
-        {
-            StringBuilder errorMessages = new StringBuilder();
-            foreach (var i in messagesElement.EnumerateArray())
-                errorMessages.Append(i.GetString());
-            message = errorMessages.ToString();
-        }
-
-        if (json.TryGetProperty("result", out JsonElement statusElement))
-        {
-            switch (statusElement.ValueKind)
-            {
-                case JsonValueKind.String:
-                    return statusElement.GetString() == "error" ? false : true;
-                case JsonValueKind.True:
-                    return true;
-                case JsonValueKind.False:
-                    return false;
-            }
-        }
-
-        return false;
-    }
+    /// <summary>Resolved target for a watchlist/list input.</summary>
+    public record WatchlistTarget(string DisplayName, string? Username, string? ListSlug);
 
     /// <summary>
-    /// Resolved target for a watchlist/list input.
-    /// </summary>
-    public record WatchlistTarget(string PlaylistName, string BasePath);
-
-    /// <summary>
-    /// Resolves a watchlist input (short URL, full URL, or plain username) to a scraping target.
-    /// Supports: "username", "https://boxd.it/QKjHO", "https://letterboxd.com/user/watchlist/",
-    /// "https://letterboxd.com/user/list/list-slug/", "letterboxd.com/user".
+    /// Resolves a watchlist input (plain username, full URL, short boxd.it URL, or list URL) to a target.
     /// </summary>
     public static async Task<WatchlistTarget> ResolveWatchlistInput(string input)
     {
         input = input.Trim();
 
-        // Plain username — no dots or slashes
-        if (!input.Contains('/') && !input.Contains('.'))
+        // Plain username — no dots or slashes.
+        if (!input.Contains('/', StringComparison.Ordinal) && !input.Contains('.', StringComparison.Ordinal))
         {
-            return new WatchlistTarget($"{input}'s Watchlist", $"/{input}/watchlist");
+            return new WatchlistTarget($"{input}'s Watchlist", input, null);
         }
 
-        // Normalize missing scheme
         if (!input.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
             input = "https://" + input;
@@ -663,16 +387,15 @@ public class LetterboxdApi
 
         if (!Uri.TryCreate(input, UriKind.Absolute, out var uri))
         {
-            return new WatchlistTarget($"{input}'s Watchlist", $"/{input}/watchlist");
+            return new WatchlistTarget($"{input}'s Watchlist", input, null);
         }
 
-        // Short URL (boxd.it) — read Location header without following redirect (avoids Cloudflare)
+        // Short URL (boxd.it) — read the Location header without following it (no Cloudflare on boxd.it).
         if (uri.Host.Equals("boxd.it", StringComparison.OrdinalIgnoreCase))
         {
             using var redirectHandler = new HttpClientHandler { AllowAutoRedirect = false };
             using var httpClient = new HttpClient(redirectHandler);
-            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0");
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Letterboxd-JellyfinSync/2.0");
             using var response = await httpClient.GetAsync(uri).ConfigureAwait(false);
             var location = response.Headers.Location;
             if (location != null)
@@ -681,125 +404,192 @@ public class LetterboxdApi
             }
         }
 
-        // Extract path info from letterboxd.com URL
         if (uri.Host.Contains("letterboxd.com", StringComparison.OrdinalIgnoreCase))
         {
-            var segments = uri.AbsolutePath.Trim('/').Split('/');
+            var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
 
             // List URL: /username/list/list-slug/
-            if (segments.Length >= 3 && segments[1] == "list")
+            if (segments.Length >= 3 && segments[1].Equals("list", StringComparison.OrdinalIgnoreCase))
             {
-                var username = segments[0];
-                var listSlug = segments[2];
-                return new WatchlistTarget(
-                    $"{username} - {listSlug}",
-                    $"/{username}/list/{listSlug}");
+                return new WatchlistTarget($"{segments[0]} - {segments[2]}", segments[0], segments[2]);
             }
 
             // Watchlist or profile URL: /username/ or /username/watchlist/
             if (segments.Length > 0 && !string.IsNullOrEmpty(segments[0]))
             {
-                var username = segments[0];
-                return new WatchlistTarget($"{username}'s Watchlist", $"/{username}/watchlist");
+                return new WatchlistTarget($"{segments[0]}'s Watchlist", segments[0], null);
             }
         }
 
-        return new WatchlistTarget($"{input}'s Watchlist", $"/{input}/watchlist");
+        return new WatchlistTarget($"{input}'s Watchlist", input, null);
     }
 
-    public async Task<List<FilmResult>> GetFilmsFromList(string basePath, int pageNum)
+    // ===== Low-level plumbing ====================================================================
+
+    private static FilmResult ParseFilmSummary(JsonElement film, string? tmdbFallback = null)
     {
-        var films = new List<FilmResult>();
+        var lid = film.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? string.Empty : string.Empty;
+        var slug = string.Empty;
+        var tmdb = tmdbFallback;
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{basePath}/page/{pageNum}/");
-        SetNavigationHeaders(request.Headers);
-
-        using var response = await client.SendAsync(request).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var html = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var htmlDoc = new HtmlDocument();
-        htmlDoc.LoadHtml(html);
-
-        var posters = htmlDoc.DocumentNode.SelectNodes("//div[@data-component-class='LazyPoster']");
-
-        if (posters == null)
+        if (film.TryGetProperty("links", out var links))
         {
-            return films;
-        }
-
-        foreach (var poster in posters)
-        {
-            var filmSlug = poster.GetAttributeValue("data-item-slug", string.Empty);
-            if (string.IsNullOrEmpty(filmSlug))
+            foreach (var link in links.EnumerateArray())
             {
-                continue;
+                var type = link.TryGetProperty("type", out var t) ? t.GetString() : null;
+                if (type == "tmdb" && link.TryGetProperty("id", out var tmdbEl))
+                {
+                    tmdb = tmdbEl.GetString();
+                }
+                else if (type == "letterboxd" && link.TryGetProperty("url", out var urlEl))
+                {
+                    slug = ExtractFilmSlug(urlEl.GetString());
+                }
             }
+        }
 
-            var film = await GetFilmTmdbIdFromSlug(filmSlug).ConfigureAwait(false);
-            if (film != null)
+        return new FilmResult(slug, lid) { tmdbId = tmdb };
+    }
+
+    private static string ExtractFilmSlug(string? letterboxdUrl)
+    {
+        if (string.IsNullOrEmpty(letterboxdUrl) || !Uri.TryCreate(letterboxdUrl, UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
+
+        var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length >= 2 && segments[0].Equals("film", StringComparison.OrdinalIgnoreCase) ? segments[1] : string.Empty;
+    }
+
+    private async Task<(HttpStatusCode Status, string Body)> SendAsync(
+        HttpMethod method,
+        string path,
+        IReadOnlyList<KeyValuePair<string, string>>? query,
+        HttpContent? content,
+        string bodyForSignature,
+        bool auth)
+    {
+        var url = BuildSignedUrl(method.Method, path, query, bodyForSignature);
+
+        using var request = new HttpRequestMessage(method, url);
+        request.Headers.Accept.ParseAdd("application/json");
+
+        if (auth && !string.IsNullOrEmpty(_accessToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+        }
+
+        if (content != null)
+        {
+            request.Content = content;
+        }
+
+        using var response = await Client.SendAsync(request).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        return (response.StatusCode, body);
+    }
+
+    /// <summary>
+    /// Builds a fully-signed request URL. The signature is HMAC-SHA256 over
+    /// METHOD + \0 + URL + \0 + BODY, keyed by the API secret, appended as the `signature` query param.
+    /// </summary>
+    private static string BuildSignedUrl(string method, string path, IReadOnlyList<KeyValuePair<string, string>>? query, string body)
+    {
+        var parameters = new List<KeyValuePair<string, string>>();
+        if (query != null)
+        {
+            parameters.AddRange(query);
+        }
+
+        parameters.Add(new("apikey", ApiKey));
+        parameters.Add(new("nonce", Guid.NewGuid().ToString()));
+        parameters.Add(new("timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)));
+
+        var queryString = new StringBuilder();
+        foreach (var kv in parameters)
+        {
+            if (queryString.Length > 0)
             {
-                films.Add(film);
+                queryString.Append('&');
             }
 
-            await Task.Delay(2000 + Random.Shared.Next(1000)).ConfigureAwait(false);
+            queryString.Append(Uri.EscapeDataString(kv.Key)).Append('=').Append(Uri.EscapeDataString(kv.Value));
         }
 
-        bool isNextPage = htmlDoc.DocumentNode.SelectNodes($"//li[a/text() = '{pageNum + 1}']") is not null;
+        var url = $"{BaseUrl}{path}?{queryString}";
+        var signingBase = $"{method.ToUpperInvariant()}\0{url}\0{body ?? string.Empty}";
 
-        if (isNextPage)
-        {
-            var nextPageFilms = await GetFilmsFromList(basePath, pageNum + 1).ConfigureAwait(false);
-            films.AddRange(nextPageFilms);
-        }
+        using var hmac = new HMACSHA256(ApiSecret);
+        var signature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(signingBase))).ToLowerInvariant();
 
-        return films;
+        return $"{url}&signature={signature}";
     }
 
-    public async Task<FilmResult?> GetFilmTmdbIdFromSlug(string filmSlug)
+    private static string ExtractError(string body)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"/film/{filmSlug}/");
-        SetNavigationHeaders(request.Headers);
-
-        using var response = await client.SendAsync(request).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var html = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var htmlDoc = new HtmlDocument();
-        htmlDoc.LoadHtml(html);
-
-        var body = htmlDoc.DocumentNode.SelectSingleNode("//body");
-        if (body == null)
+        if (string.IsNullOrWhiteSpace(body))
         {
-            return null;
+            return string.Empty;
         }
 
-        string filmId = body.GetAttributeValue("data-tmdb-id", string.Empty);
-        if (string.IsNullOrEmpty(filmId))
+        // Letterboxd error bodies are usually { "message": "...", "type": "..." } or { "messages": [...] }.
+        try
         {
-            return null;
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
+            {
+                return m.GetString() ?? string.Empty;
+            }
+
+            if (root.TryGetProperty("messages", out var ms) && ms.ValueKind == JsonValueKind.Array)
+            {
+                return string.Join(" ", ms.EnumerateArray().Select(x => x.GetString()));
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall through to raw preview.
         }
 
-        return new FilmResult(filmSlug, filmId);
-    }
-
-    private static string? ExtractHiddenInput(string html, string name)
-    {
-        // Matches: <input type="hidden" name="__csrf" value="...">
-        var pattern = $@"<input[^>]*\bname\s*=\s*[""']{Regex.Escape(name)}[""'][^>]*\bvalue\s*=\s*[""']([^""']*)[""'][^>]*>";
-        var m = Regex.Match(html, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        return m.Success ? WebUtility.HtmlDecode(m.Groups[1].Value) : null;
+        return body.Length > 300 ? body.Substring(0, 300) : body;
     }
 }
 
+/// <summary>Result of resolving a film on Letterboxd.</summary>
 public class FilmResult
 {
-    public string filmSlug = string.Empty;
-    public string filmId = string.Empty;
-
     public FilmResult(string filmSlug, string filmId)
     {
         this.filmSlug = filmSlug;
         this.filmId = filmId;
+    }
+
+    /// <summary>The film's URL slug (e.g. "the-godfather"). May be empty.</summary>
+    public string filmSlug { get; set; } = string.Empty;
+
+    /// <summary>The Letterboxd film LID (used to log the film).</summary>
+    public string filmId { get; set; } = string.Empty;
+
+    /// <summary>The film's TMDB id, when known (used to match against the Jellyfin library).</summary>
+    public string? tmdbId { get; set; }
+}
+
+/// <summary>Error raised for a failed Letterboxd API operation.</summary>
+public class LetterboxdApiException : Exception
+{
+    public LetterboxdApiException()
+    {
+    }
+
+    public LetterboxdApiException(string message)
+        : base(message)
+    {
+    }
+
+    public LetterboxdApiException(string message, Exception innerException)
+        : base(message, innerException)
+    {
     }
 }

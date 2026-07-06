@@ -49,7 +49,7 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var users = _userManager.Users.ToList();
+        var users = _userManager.GetUsers().ToList();
         var totalUsers = users.Count;
         var processedUsers = 0;
 
@@ -78,7 +78,7 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
 
                 try
                 {
-                    await SyncWatchlistForUser(user.Id, watchlistUsername, account.CookiesRaw, cancellationToken).ConfigureAwait(false);
+                    await SyncWatchlistForUser(user.Id, watchlistUsername, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -96,31 +96,56 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         progress.Report(100);
     }
 
-    private async Task SyncWatchlistForUser(Guid jellyfinUserId, string watchlistInput, string? cookiesRaw, CancellationToken cancellationToken)
+    private async Task SyncWatchlistForUser(Guid jellyfinUserId, string watchlistInput, CancellationToken cancellationToken)
     {
         var target = await LetterboxdApi.ResolveWatchlistInput(watchlistInput).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Syncing '{PlaylistName}' (path: {BasePath}, input: {Input}) to Jellyfin user {UserId}",
-            target.PlaylistName, target.BasePath, watchlistInput, jellyfinUserId.ToString("N"));
+            "Syncing '{PlaylistName}' (input: {Input}) to Jellyfin user {UserId}",
+            target.DisplayName, watchlistInput, jellyfinUserId.ToString("N"));
 
-        var api = new LetterboxdApi();
-        if (!string.IsNullOrWhiteSpace(cookiesRaw))
+        var api = new LetterboxdApi(_logger);
+
+        List<FilmResult> watchlistFilms;
+        if (string.IsNullOrEmpty(target.ListSlug))
         {
-            api.SetRawCookies(cookiesRaw!);
-        }
+            if (string.IsNullOrEmpty(target.Username))
+            {
+                _logger.LogWarning("Could not determine a Letterboxd username from input '{Input}'", watchlistInput);
+                return;
+            }
 
-        var watchlistFilms = await api.GetFilmsFromList(target.BasePath, 1).ConfigureAwait(false);
+            var memberId = await api.ResolveMemberId(target.Username).ConfigureAwait(false);
+            if (memberId == null)
+            {
+                _logger.LogWarning("Letterboxd member '{Username}' not found", target.Username);
+                return;
+            }
+
+            watchlistFilms = await api.GetWatchlist(memberId).ConfigureAwait(false);
+        }
+        else
+        {
+            var listId = await api.ResolveListId(target.Username!, target.ListSlug).ConfigureAwait(false);
+            if (listId == null)
+            {
+                _logger.LogWarning("Letterboxd list '{User}/{Slug}' could not be resolved via the API", target.Username, target.ListSlug);
+                return;
+            }
+
+            watchlistFilms = await api.GetListEntries(listId).ConfigureAwait(false);
+        }
 
         if (watchlistFilms.Count == 0)
         {
-            _logger.LogInformation("'{PlaylistName}' is empty or does not exist", target.PlaylistName);
+            _logger.LogInformation("'{PlaylistName}' is empty or does not exist", target.DisplayName);
             return;
         }
 
         var watchlistTmdbIds = watchlistFilms
-            .Select(f => f.filmId)
+            .Select(f => f.tmdbId)
             .Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => id!)
             .ToHashSet();
 
         // Find matching movies in the Jellyfin library
@@ -140,14 +165,14 @@ public class LetterboxdWatchlistSyncTask : IScheduledTask
         {
             _logger.LogInformation(
                 "No matching movies found in library for '{PlaylistName}' ({WatchlistCount} films in list)",
-                target.PlaylistName, watchlistFilms.Count);
+                target.DisplayName, watchlistFilms.Count);
             return;
         }
 
         var matchedItemIds = matchedItems.Select(m => m.Id).ToHashSet();
 
         // Find or create the playlist
-        string playlistName = target.PlaylistName;
+        string playlistName = target.DisplayName;
 
         var existingPlaylists = _playlistManager.GetPlaylists(jellyfinUserId);
         var playlist = existingPlaylists.FirstOrDefault(p =>

@@ -473,11 +473,7 @@
             '  <div class="inputContainer">',
             '    <label class="inputLabel" for="lbxd-key">' + t.password + '</label>',
             '    <input type="password" id="lbxd-key" class="emby-input" autocomplete="new-password" />',
-            '  </div>',
-            '  <div class="inputContainer">',
-            '    <label class="inputLabel" for="lbxd-cookies">' + t.rawCookies + '</label>',
-            '    <textarea id="lbxd-cookies" class="emby-textarea" rows="3" style="width:100%;box-sizing:border-box;"></textarea>',
-            '    <div class="fieldDescription">' + t.cookiesHelp + '</div>',
+            '    <div class="fieldDescription" id="lbxd-link-status"></div>',
             '  </div>',
             '  <h3>' + t.options + '</h3>',
             '  <div class="checkboxContainer checkboxContainer-withDescription">',
@@ -551,24 +547,23 @@
     function loadConfig(view) {
         var url = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
         ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (account) {
-            var u = account.UserLetterboxd || '';
-            var p = account.PasswordLetterboxd || '';
-            var c = account.CookiesRaw || '';
-            _initialUsername = u;
-            _initialPassword = p;
-            _initialCookies = c;
+            view.querySelector('#lbxd-account').value = account.userLetterboxd || '';
+            view.querySelector('#lbxd-key').value = '';
+            view.querySelector('#lbxd-enable').checked = account.enable || false;
+            view.querySelector('#lbxd-sendfavorite').checked = account.sendFavorite || false;
+            view.querySelector('#lbxd-datefilter').checked = account.enableDateFilter || false;
+            view.querySelector('#lbxd-datedays').value = account.dateFilterDays || 7;
 
-            view.querySelector('#lbxd-account').value = u;
-            view.querySelector('#lbxd-key').value = p;
-            view.querySelector('#lbxd-cookies').value = c;
-            view.querySelector('#lbxd-enable').checked = account.Enable || false;
-            view.querySelector('#lbxd-sendfavorite').checked = account.SendFavorite || false;
-            view.querySelector('#lbxd-datefilter').checked = account.EnableDateFilter || false;
-            view.querySelector('#lbxd-datedays').value = account.DateFilterDays || 7;
+            var status = view.querySelector('#lbxd-link-status');
+            if (status) {
+                status.textContent = account.isLinked
+                    ? (t.linked || 'Account linked. Leave the password blank to keep it, or re-enter it to re-link.')
+                    : (t.notLinked || 'Not linked. Enter your Letterboxd credentials. Your password is exchanged for a token on save and is never stored.');
+            }
 
             var container = view.querySelector('#lbxd-watchlist-container');
             container.innerHTML = '';
-            var usernames = account.WatchlistUsernames || [];
+            var usernames = account.watchlistUsernames || [];
             for (var i = 0; i < usernames.length; i++) {
                 addWatchlistEntry(container, usernames[i]);
             }
@@ -612,7 +607,6 @@
             var configUser = {
                 UserLetterboxd: view.querySelector('#lbxd-account').value,
                 PasswordLetterboxd: view.querySelector('#lbxd-key').value,
-                CookiesRaw: view.querySelector('#lbxd-cookies').value,
                 Enable: view.querySelector('#lbxd-enable').checked,
                 SendFavorite: view.querySelector('#lbxd-sendfavorite').checked,
                 EnableDateFilter: view.querySelector('#lbxd-datefilter').checked,
@@ -638,42 +632,25 @@
                 submitBtn.querySelector('span').textContent = t.save;
             }
 
-            function saveConfig() {
-                var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
-                ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
-                    onDone();
-                    Dashboard.alert(t.settingsSaved);
-                    closeDialog();
-                }).catch(function () {
-                    onDone();
+            // SaveUserConfig performs the OAuth exchange server-side (password -> token) and returns
+            // an error if the credentials are invalid, so a separate auth step is no longer needed.
+            var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
+            ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
+                onDone();
+                Dashboard.alert(t.settingsSaved);
+                closeDialog();
+            }).catch(function (response) {
+                onDone();
+                if (response && response.json) {
+                    response.json().then(function (res) {
+                        Dashboard.alert((t.authFailed || 'Error') + ' ' + (res.Message || ''));
+                    }).catch(function () {
+                        Dashboard.alert(t.errorSaving);
+                    });
+                } else {
                     Dashboard.alert(t.errorSaving);
-                });
-            }
-
-            // Only authenticate if credentials changed and sync is enabled
-            var credentialsChanged = configUser.UserLetterboxd !== _initialUsername ||
-                configUser.PasswordLetterboxd !== _initialPassword ||
-                configUser.CookiesRaw !== _initialCookies;
-
-            if (!configUser.Enable || !credentialsChanged) {
-                saveConfig();
-            } else {
-                submitBtn.querySelector('span').textContent = t.authenticating;
-                var authUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserAuthenticate');
-                ApiClient.ajax({ type: 'POST', url: authUrl, data: data, contentType: 'application/json' }).then(function () {
-                    submitBtn.querySelector('span').textContent = t.saving;
-                    saveConfig();
-                }).catch(function (response) {
-                    onDone();
-                    if (response && response.json) {
-                        response.json().then(function (res) {
-                            Dashboard.alert(t.authFailed + ' ' + res.Message);
-                        });
-                    } else {
-                        Dashboard.alert(t.authFailed);
-                    }
-                });
-            }
+                }
+            });
         });
     }
 

@@ -47,7 +47,7 @@ public class LetterboxdSyncTask : IScheduledTask
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var lstUsers = _userManager.Users;
+        var lstUsers = _userManager.GetUsers();
         foreach (var user in lstUsers)
         {
             var account = Configuration.Accounts.FirstOrDefault(account => account.UserJellyfin == user.Id.ToString("N") && account.Enable);
@@ -81,8 +81,7 @@ public class LetterboxdSyncTask : IScheduledTask
             var api = new LetterboxdApi(_logger);
             try
             {
-                api.SetRawCookies(account.CookiesRaw);
-                await api.Authenticate(account.UserLetterboxd, account.PasswordLetterboxd).ConfigureAwait(false);
+                await AuthenticateAccount(api, account).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -110,33 +109,32 @@ public class LetterboxdSyncTask : IScheduledTask
                     {
                         var filmResult = await api.SearchFilmByTmdbId(tmdbid).ConfigureAwait(false);
 
-                        // Add a small delay between lookups to avoid 403 (Cloudflare/Anti-bot)
-                        await Task.Delay(1000 + Random.Shared.Next(1000), cancellationToken).ConfigureAwait(false);
-
-                        var dateLastLog = await api.GetDateLastLog(filmResult.filmSlug).ConfigureAwait(false);
-                        viewingDate = new DateTime(viewingDate.Value.Year, viewingDate.Value.Month, viewingDate.Value.Day);
-
-                        if (dateLastLog != null && dateLastLog.Value.Date == viewingDate.Value.Date)
+                        if (filmResult == null)
                         {
                             _logger.LogWarning(
-                                @"Film has been logged into Letterboxd previously ({Date})
+                                @"Film not found on Letterboxd
                                 User: {Username} ({UserId})
                                 Movie: {Movie} ({TmdbId})",
-                                ((DateTime)dateLastLog).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                                 user.Username, user.Id.ToString("N"),
                                 title, tmdbid);
+                            continue;
                         }
-                        else
-                        {
-                            await api.MarkAsWatched(filmResult.filmSlug, filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
-                            _logger.LogInformation(
-                                @"Film logged in Letterboxd
-                                User: {Username} ({UserId})
-                                Movie: {Movie} ({TmdbId})
-                                Date: {ViewingDate}",
-                                user.Username, user.Id.ToString("N"),
-                                title, tmdbid, viewingDate);
-                        }
+
+                        // Letterboxd's diary needs a date; fall back to today if Jellyfin has none.
+                        viewingDate = (viewingDate ?? DateTime.Now).Date;
+
+                        // MarkAsWatched is idempotent server-side (204 = already logged), so no pre-check is needed.
+                        await api.MarkAsWatched(filmResult.filmId, viewingDate, tags, favorite).ConfigureAwait(false);
+                        _logger.LogInformation(
+                            @"Film logged in Letterboxd
+                            User: {Username} ({UserId})
+                            Movie: {Movie} ({TmdbId})
+                            Date: {ViewingDate}",
+                            user.Username, user.Id.ToString("N"),
+                            title, tmdbid, viewingDate);
+
+                        // Small delay between films to stay well-mannered.
+                        await Task.Delay(1000 + Random.Shared.Next(1000), cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -164,6 +162,53 @@ public class LetterboxdSyncTask : IScheduledTask
         }
 
         progress.Report(100);
+    }
+
+    private static readonly object ConfigSaveLock = new();
+
+    /// <summary>
+    /// Authenticates <paramref name="api"/> for the given account, preferring a stored refresh token
+    /// and falling back to username/password. A newly obtained or rotated refresh token is persisted
+    /// and the plaintext password is dropped.
+    /// </summary>
+    private async Task AuthenticateAccount(LetterboxdApi api, Account account)
+    {
+        var previousRefreshToken = account.RefreshToken;
+        var authenticated = false;
+
+        if (!string.IsNullOrWhiteSpace(account.RefreshToken))
+        {
+            try
+            {
+                await api.AuthenticateWithRefreshToken(account.RefreshToken!).ConfigureAwait(false);
+                authenticated = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Letterboxd refresh token rejected; falling back to password login if available.");
+            }
+        }
+
+        if (!authenticated)
+        {
+            if (string.IsNullOrWhiteSpace(account.UserLetterboxd) || string.IsNullOrWhiteSpace(account.PasswordLetterboxd))
+            {
+                throw new LetterboxdApiException("No valid Letterboxd credentials (refresh token expired and no password to re-authenticate).");
+            }
+
+            await api.AuthenticateWithPassword(account.UserLetterboxd!, account.PasswordLetterboxd!).ConfigureAwait(false);
+        }
+
+        // Persist a newly obtained / rotated refresh token, and drop the plaintext password.
+        if (!string.IsNullOrEmpty(api.RefreshToken) && api.RefreshToken != previousRefreshToken)
+        {
+            lock (ConfigSaveLock)
+            {
+                account.RefreshToken = api.RefreshToken;
+                account.PasswordLetterboxd = null;
+                Plugin.Instance!.SaveConfiguration();
+            }
+        }
     }
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => new[]

@@ -37,16 +37,22 @@ export default function (view, params) {
 
         var url = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
         ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (account) {
-            view.querySelector('#lbxd-account').value = account.UserLetterboxd || '';
-            view.querySelector('#lbxd-key').value = account.PasswordLetterboxd || '';
-            view.querySelector('#cookiesraw').value = account.CookiesRaw || '';
-            view.querySelector('#enable').checked = account.Enable || false;
-            view.querySelector('#sendfavorite').checked = account.SendFavorite || false;
-            view.querySelector('#enabledatefilter').checked = account.EnableDateFilter || false;
-            view.querySelector('#datefilterdays').value = account.DateFilterDays || 7;
+            view.querySelector('#lbxd-account').value = account.userLetterboxd || '';
+            view.querySelector('#lbxd-key').value = '';
+            view.querySelector('#enable').checked = account.enable || false;
+            view.querySelector('#sendfavorite').checked = account.sendFavorite || false;
+            view.querySelector('#enabledatefilter').checked = account.enableDateFilter || false;
+            view.querySelector('#datefilterdays').value = account.dateFilterDays || 7;
+
+            var status = view.querySelector('#lbxd-link-status');
+            if (status) {
+                status.textContent = account.isLinked
+                    ? 'Account linked. Leave the password blank to keep it, or re-enter it to re-link.'
+                    : 'Not linked. Enter your Letterboxd credentials. Your password is exchanged for a token on save and is never stored.';
+            }
 
             container.innerHTML = '';
-            var usernames = account.WatchlistUsernames || [];
+            var usernames = account.watchlistUsernames || [];
             for (var i = 0; i < usernames.length; i++) {
                 addWatchlistEntry(container, usernames[i]);
             }
@@ -67,7 +73,6 @@ export default function (view, params) {
         var configUser = {};
         configUser.UserLetterboxd = view.querySelector('#lbxd-account').value;
         configUser.PasswordLetterboxd = view.querySelector('#lbxd-key').value;
-        configUser.CookiesRaw = view.querySelector('#cookiesraw').value;
         configUser.Enable = view.querySelector('#enable').checked;
         configUser.SendFavorite = view.querySelector('#sendfavorite').checked;
         configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
@@ -85,29 +90,23 @@ export default function (view, params) {
 
         var data = JSON.stringify(configUser);
 
-        function saveConfig() {
-            var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
-            ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
-                Dashboard.hideLoadingMsg();
-                Dashboard.alert('Settings saved.');
-            }).catch(function () {
-                Dashboard.hideLoadingMsg();
-                Dashboard.alert('Error saving settings.');
-            });
-        }
-
-        if (!configUser.Enable) {
-            saveConfig();
-        } else {
-            var authUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserAuthenticate');
-            ApiClient.ajax({ type: 'POST', url: authUrl, data: data, contentType: 'application/json' }).then(function () {
-                saveConfig();
-            }).catch(function (response) {
+        // SaveUserConfig performs the OAuth exchange server-side (password -> token) and returns an
+        // error if the credentials are invalid, so a separate auth step is no longer needed.
+        var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
+        ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
+            Dashboard.hideLoadingMsg();
+            Dashboard.alert('Settings saved.');
+        }).catch(function (response) {
+            Dashboard.hideLoadingMsg();
+            if (response && response.json) {
                 response.json().then(function (res) {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.processErrorResponse({ statusText: response.statusText + ' - ' + res.Message });
+                    Dashboard.processErrorResponse({ statusText: response.statusText + ' - ' + (res.Message || '') });
+                }).catch(function () {
+                    Dashboard.alert('Error saving settings.');
                 });
-            });
-        }
+            } else {
+                Dashboard.alert('Error saving settings.');
+            }
+        });
     });
 }
