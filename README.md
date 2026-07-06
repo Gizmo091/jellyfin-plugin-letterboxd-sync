@@ -3,82 +3,56 @@
 </p>
 
 <div align="center">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/hrqmonteiro/jellyfin-plugin-letterboxd-sync">
-    <img alt="GitHub Downloads (all assets, latest release)" src="https://img.shields.io/github/downloads/hrqmonteiro/jellyfin-plugin-letterboxd-sync/latest/total">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/Gizmo091/jellyfin-plugin-letterboxd-sync">
+    <img alt="GitHub Downloads (all assets, latest release)" src="https://img.shields.io/github/downloads/Gizmo091/jellyfin-plugin-letterboxd-sync/latest/total">
 </div>
 
 <p/>
-    
+
 <p align="center">
-    A unofficial plugin to keep your watched movie history from Jellyfin automatically updated to your Letterboxd diary.
+    An unofficial plugin to keep your watched movie history from Jellyfin automatically updated to your Letterboxd diary.
 </p>
 
 ## About
 
-This plugin sends daily updates to the Letterboxd diary informing the films watched on Jellyfin. Since the Letterboxd API is not publicly available, this project uses the HtmlAgilityPack package to interact directly with the website's interface.
+This plugin sends daily updates to your Letterboxd diary with the films you watched on Jellyfin. Since **v2.0.0** it talks to Letterboxd's **official REST API** (`api.letterboxd.com`) instead of scraping the website, which removes the Cloudflare `403` errors that used to require copying cookies.
 
 ## Requirements
 
-- **Jellyfin 10.11+**
-- **[File Transformation](https://github.com/danieladov/jellyfin-plugin-file-transformation)** plugin — Required to inject the Letterboxd sidebar menu for all users (including non-admins). Without it, admin configuration still works but non-admin users won't see the Letterboxd entry in the sidebar.
+- **Jellyfin ≥ 10.11.9** — earlier versions are not supported (the plugin uses an API that changed in 10.11.9).
+- **[File Transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation)** plugin *(optional)* — needed only to inject the Letterboxd entry in the sidebar for non-admin users. Without it, admin configuration still works fine.
 
 ## Installation
 
 1. Open the dashboard in Jellyfin, then select `Catalog` and open `Settings` at the top with the `⚙️` button.
 
-2. Click the `+` button and add the repository URL below, naming it whatever you like and save.
+2. Click the `+` button and add the repository URL below, naming it whatever you like, and save.
 
 ```
-https://raw.githubusercontent.com/hrqmonteiro/jellyfin-plugin-letterboxd-sync/master/manifest.json
+https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/manifest.json
 ```
 
-3. Go back to `Catalog`, click on 'LetterboxdSync' at 'General' group and install the most recent version.
+3. Go back to `Catalog`, click on 'LetterboxdSync' in the 'General' group and install the most recent version.
 
-4. Restart Jellyfin and go back to the plugin settings. Go to `My Plugins` and click on 'LetterboxdSync' to configure.
-   
+4. Restart Jellyfin, then go to the plugin settings (`My Plugins` → 'LetterboxdSync') to configure.
+
 ## Configure
 
- - You can associate one Letterboxd account for each Jellyfin user. You need click `Save` for each one.
+- You can associate one Letterboxd account with each Jellyfin user. Click `Save` for each one.
 
- - The synchronization task runs every 24 hours and only for uses accounts marked as `Enable`.
+- **Sign in with your Letterboxd _username_ (the one in `letterboxd.com/<username>/`), not your email address** — Letterboxd no longer allows sign-in by email. Enter your username and password once; the plugin exchanges them for a token and **never stores your password**.
 
- - Check `Send Favorite` if you want films marked as favorites on Jellyfin to be marked as favorites on Letterboxd.
+- The synchronization task runs every 24 hours, only for accounts marked as `Enable`.
 
- - By default the plugin will do a full sync to letterboxd. Once done initially its advised to `Enable Date Filtering` with a short lookback to avoid load on letterboxd.
+- Check `Send Favorite` if you want films marked as favorites on Jellyfin to also be marked as favorites on Letterboxd.
+
+- By default the plugin does a full sync to Letterboxd. Once the initial sync is done, it's advised to `Enable Date Filtering` with a short lookback to reduce load.
 
 <p align="center">
     <img src="/images/config-page.png" width="70%">
 </p>
 
-## Add raw cookies (In case you are getting 403 Error when authenticating)
+## Upgrading from 1.x
 
-If you try to authenticate and receive a 403 error:
-
-<p align="center">
-    <img src="/images/config-page-403-error.png" width="70%">
-</p>
-
-That means Cloudflare is preventing you logging in. To bypass this, you need to log in letterboxd in a browser and copy the cookies from the request headers,
-which is usually the first request on the page.
-
-So activate Developer Tools in your browser (usually F12) and go to the Network tab:
-
-<p align="center">
-    <img src="/images/readme-request.png" width="70%">
-</p>
-
-Reload the page and click on the first request (on "/"), like the image, and scroll below until the request headers and you will see the Cookie:
-
-<p align="center">
-    <img src="/images/readme-request-headers.png" width="70%">
-</p>
-
-Be sure to right click and click on `Copy value`, just selecting with your mouse will not work.
-
-Then paste that into the Raw Cookies section in the Plugin settings:
-
-<p align="center">
-    <img src="/images/config-page-raw-cookies.png" width="70%">
-</p>
-
-That should bypass the Cloudflare protection and allow you to login.
+- **No more cookies.** The `Raw Cookies` / Cloudflare workaround is gone — you can clear that field. Just make sure you sign in with your **username** (not email).
+- Existing configurations keep working: on the next sync the plugin swaps your stored password for a refresh token automatically.
