@@ -500,7 +500,7 @@
             '  </div>',
             '  <div class="inputContainer">',
             '    <label class="inputLabel" for="lbxd-datedays">' + t.daysToLookBack + '</label>',
-            '    <input type="number" id="lbxd-datedays" class="emby-input" min="1" max="365" />',
+            '    <input type="number" id="lbxd-datedays" class="emby-input" min="1" max="5000" />',
             '  </div>',
             '  <h3>' + t.watchlistSync + '</h3>',
             '  <div class="fieldDescription" style="margin-bottom:0.5em;">' + t.watchlistDesc + '</div>',
