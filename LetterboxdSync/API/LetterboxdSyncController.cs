@@ -104,9 +104,8 @@ public class LetterboxdSyncController : ControllerBase
             body.RefreshToken = existing?.RefreshToken;
         }
 
-        // Never persist the plaintext password or legacy cookies.
+        // Never persist the plaintext password.
         body.PasswordLetterboxd = null;
-        body.CookiesRaw = null;
 
         lock (_configLock)
         {

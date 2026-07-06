@@ -10,8 +10,6 @@
             login: 'Letterboxd Login',
             username: 'Letterboxd Username',
             password: 'Letterboxd Password',
-            rawCookies: 'Raw Cookies',
-            cookiesHelp: 'If you get 403 errors, paste cookie headers from your browser after visiting letterboxd.com.',
             options: 'Options',
             enableSync: 'Enable sync',
             enableSyncDesc: 'Synchronizes the films watched by this user',
@@ -27,7 +25,6 @@
             remove: 'Remove',
             save: 'Save',
             saving: 'Saving...',
-            authenticating: 'Authenticating...',
             settingsSaved: 'Settings saved.',
             errorSaving: 'Error saving settings.',
             authFailed: 'Authentication failed.'
@@ -36,8 +33,6 @@
             login: 'Connexion Letterboxd',
             username: 'Nom d\'utilisateur Letterboxd',
             password: 'Mot de passe Letterboxd',
-            rawCookies: 'Cookies bruts',
-            cookiesHelp: 'En cas d\'erreur 403, collez les cookies de votre navigateur apr\u00e8s avoir visit\u00e9 letterboxd.com.',
             options: 'Options',
             enableSync: 'Activer la synchronisation',
             enableSyncDesc: 'Synchronise les films vus par cet utilisateur',
@@ -53,7 +48,6 @@
             remove: 'Supprimer',
             save: 'Enregistrer',
             saving: 'Enregistrement...',
-            authenticating: 'Authentification...',
             settingsSaved: 'Param\u00e8tres enregistr\u00e9s.',
             errorSaving: 'Erreur lors de l\'enregistrement.',
             authFailed: '\u00c9chec de l\'authentification.'
@@ -62,8 +56,6 @@
             login: 'Letterboxd-Anmeldung',
             username: 'Letterboxd-Benutzername',
             password: 'Letterboxd-Passwort',
-            rawCookies: 'Roh-Cookies',
-            cookiesHelp: 'Bei 403-Fehlern f\u00fcgen Sie die Cookie-Header Ihres Browsers ein, nachdem Sie letterboxd.com besucht haben.',
             options: 'Optionen',
             enableSync: 'Synchronisierung aktivieren',
             enableSyncDesc: 'Synchronisiert die von diesem Benutzer gesehenen Filme',
@@ -79,7 +71,6 @@
             remove: 'Entfernen',
             save: 'Speichern',
             saving: 'Speichern...',
-            authenticating: 'Authentifizierung...',
             settingsSaved: 'Einstellungen gespeichert.',
             errorSaving: 'Fehler beim Speichern.',
             authFailed: 'Authentifizierung fehlgeschlagen.'
@@ -88,8 +79,6 @@
             login: 'Inicio de sesi\u00f3n Letterboxd',
             username: 'Usuario Letterboxd',
             password: 'Contrase\u00f1a Letterboxd',
-            rawCookies: 'Cookies sin procesar',
-            cookiesHelp: 'Si obtiene errores 403, pegue las cookies de su navegador despu\u00e9s de visitar letterboxd.com.',
             options: 'Opciones',
             enableSync: 'Activar sincronizaci\u00f3n',
             enableSyncDesc: 'Sincroniza las pel\u00edculas vistas por este usuario',
@@ -105,7 +94,6 @@
             remove: 'Eliminar',
             save: 'Guardar',
             saving: 'Guardando...',
-            authenticating: 'Autenticando...',
             settingsSaved: 'Ajustes guardados.',
             errorSaving: 'Error al guardar.',
             authFailed: 'Error de autenticaci\u00f3n.'
@@ -114,8 +102,6 @@
             login: 'Accesso Letterboxd',
             username: 'Nome utente Letterboxd',
             password: 'Password Letterboxd',
-            rawCookies: 'Cookie grezzi',
-            cookiesHelp: 'Se ricevi errori 403, incolla i cookie del browser dopo aver visitato letterboxd.com.',
             options: 'Opzioni',
             enableSync: 'Attiva sincronizzazione',
             enableSyncDesc: 'Sincronizza i film visti da questo utente',
@@ -130,7 +116,6 @@
             remove: 'Rimuovi',
             save: 'Salva',
             saving: 'Salvataggio...',
-            authenticating: 'Autenticazione...',
             settingsSaved: 'Impostazioni salvate.',
             errorSaving: 'Errore durante il salvataggio.',
             authFailed: 'Autenticazione fallita.'
@@ -139,8 +124,6 @@
             login: 'Login Letterboxd',
             username: 'Utilizador Letterboxd',
             password: 'Palavra-passe Letterboxd',
-            rawCookies: 'Cookies em bruto',
-            cookiesHelp: 'Se receber erros 403, cole os cookies do navegador ap\u00f3s visitar letterboxd.com.',
             options: 'Op\u00e7\u00f5es',
             enableSync: 'Ativar sincroniza\u00e7\u00e3o',
             enableSyncDesc: 'Sincroniza os filmes vistos por este utilizador',
@@ -155,7 +138,6 @@
             remove: 'Remover',
             save: 'Guardar',
             saving: 'A guardar...',
-            authenticating: 'A autenticar...',
             settingsSaved: 'Defini\u00e7\u00f5es guardadas.',
             errorSaving: 'Erro ao guardar.',
             authFailed: 'Falha na autentica\u00e7\u00e3o.'
@@ -164,8 +146,6 @@
             login: 'Letterboxd-inloggen',
             username: 'Letterboxd-gebruikersnaam',
             password: 'Letterboxd-wachtwoord',
-            rawCookies: 'Ruwe cookies',
-            cookiesHelp: 'Bij 403-fouten, plak de cookies van uw browser na het bezoeken van letterboxd.com.',
             options: 'Opties',
             enableSync: 'Synchronisatie inschakelen',
             enableSyncDesc: 'Synchroniseert de films bekeken door deze gebruiker',
@@ -180,7 +160,6 @@
             remove: 'Verwijderen',
             save: 'Opslaan',
             saving: 'Opslaan...',
-            authenticating: 'Authenticatie...',
             settingsSaved: 'Instellingen opgeslagen.',
             errorSaving: 'Fout bij opslaan.',
             authFailed: 'Authenticatie mislukt.'
@@ -189,8 +168,6 @@
             login: 'Logowanie Letterboxd',
             username: 'Nazwa u\u017cytkownika Letterboxd',
             password: 'Has\u0142o Letterboxd',
-            rawCookies: 'Surowe ciasteczka',
-            cookiesHelp: 'Je\u015bli otrzymujesz b\u0142\u0119dy 403, wklej ciasteczka z przegl\u0105darki po odwiedzeniu letterboxd.com.',
             options: 'Opcje',
             enableSync: 'W\u0142\u0105cz synchronizacj\u0119',
             enableSyncDesc: 'Synchronizuje filmy obejrzane przez tego u\u017cytkownika',
@@ -205,7 +182,6 @@
             remove: 'Usu\u0144',
             save: 'Zapisz',
             saving: 'Zapisywanie...',
-            authenticating: 'Uwierzytelnianie...',
             settingsSaved: 'Ustawienia zapisane.',
             errorSaving: 'B\u0142\u0105d podczas zapisywania.',
             authFailed: 'Uwierzytelnianie nie powiod\u0142o si\u0119.'
@@ -214,8 +190,6 @@
             login: 'P\u0159ihl\u00e1\u0161en\u00ed Letterboxd',
             username: 'U\u017eivatelsk\u00e9 jm\u00e9no Letterboxd',
             password: 'Heslo Letterboxd',
-            rawCookies: 'Surov\u00e9 cookies',
-            cookiesHelp: 'P\u0159i chyb\u00e1ch 403 vlo\u017ete cookies z prohl\u00ed\u017ee\u010de po n\u00e1v\u0161t\u011bv\u011b letterboxd.com.',
             options: 'Mo\u017enosti',
             enableSync: 'Povolit synchronizaci',
             enableSyncDesc: 'Synchronizuje filmy zhl\u00e9dnut\u00e9 t\u00edmto u\u017eivatelem',
@@ -230,119 +204,107 @@
             remove: 'Odebrat',
             save: 'Ulo\u017eit',
             saving: 'Ukl\u00e1d\u00e1n\u00ed...',
-            authenticating: 'Ov\u011b\u0159ov\u00e1n\u00ed...',
             settingsSaved: 'Nastaven\u00ed ulo\u017eeno.',
             errorSaving: 'Chyba p\u0159i ukl\u00e1d\u00e1n\u00ed.',
             authFailed: 'Ov\u011b\u0159en\u00ed selhalo.'
         },
         ro: {
             login: 'Autentificare Letterboxd', username: 'Utilizator Letterboxd', password: 'Parol\u0103 Letterboxd',
-            rawCookies: 'Cookie-uri brute', cookiesHelp: 'Dac\u0103 primi\u021bi erori 403, lipi\u021bi cookie-urile din browser dup\u0103 ce vizita\u021bi letterboxd.com.',
             options: 'Op\u021biuni', enableSync: 'Activeaz\u0103 sincronizarea', enableSyncDesc: 'Sincronizeaz\u0103 filmele vizionate de acest utilizator',
             sendFavorites: 'Trimite favorite', dateFiltering: 'Filtrare dup\u0103 dat\u0103', enableDateFilter: 'Activeaz\u0103 filtrarea dup\u0103 dat\u0103',
             enableDateFilterDesc: 'Sincronizeaz\u0103 doar filmele vizionate \u00een num\u0103rul de zile specificat', daysToLookBack: 'Num\u0103r de zile',
             watchlistSync: 'Sincronizare watchlist', watchlistDesc: 'Ad\u0103uga\u021bi utilizatori Letterboxd ale c\u0103ror watchlist-uri publice dori\u021bi s\u0103 le sincroniza\u021bi ca playlisturi.',
-            addWatchlist: 'Adaug\u0103 watchlist', remove: '\u0218terge', save: 'Salveaz\u0103', saving: 'Se salveaz\u0103...', authenticating: 'Autentificare...',
+            addWatchlist: 'Adaug\u0103 watchlist', remove: '\u0218terge', save: 'Salveaz\u0103', saving: 'Se salveaz\u0103...',
             settingsSaved: 'Set\u0103ri salvate.', errorSaving: 'Eroare la salvare.', authFailed: 'Autentificare e\u0219uat\u0103.'
         },
         hu: {
             login: 'Letterboxd bejelentkez\u00e9s', username: 'Letterboxd felhaszn\u00e1l\u00f3n\u00e9v', password: 'Letterboxd jelsz\u00f3',
-            rawCookies: 'Nyers s\u00fctik', cookiesHelp: '403-as hiba eset\u00e9n illessze be a b\u00f6ng\u00e9sz\u0151 s\u00fctikeit a letterboxd.com megl\u00e1togat\u00e1sa ut\u00e1n.',
             options: 'Be\u00e1ll\u00edt\u00e1sok', enableSync: 'Szinkroniz\u00e1l\u00e1s enged\u00e9lyez\u00e9se', enableSyncDesc: 'Szinkroniz\u00e1lja a felhaszn\u00e1l\u00f3 \u00e1ltal megtekintett filmeket',
             sendFavorites: 'Kedvencek k\u00fcld\u00e9se', dateFiltering: 'D\u00e1tumsz\u0171r\u00e9s', enableDateFilter: 'D\u00e1tumsz\u0171r\u00e9s enged\u00e9lyez\u00e9se',
             enableDateFilterDesc: 'Csak a megadott napon bel\u00fcl megtekintett filmek szinkroniz\u00e1l\u00e1sa', daysToLookBack: 'Napok sz\u00e1ma',
             watchlistSync: 'Watchlist szinkroniz\u00e1l\u00e1s', watchlistDesc: 'Adjon hozz\u00e1 Letterboxd felhaszn\u00e1l\u00f3neveket, akiknek a nyilv\u00e1nos watchlistjeit lej\u00e1tsz\u00e1si listakk\u00e9nt szinkroniz\u00e1lni szeretn\u00e9.',
-            addWatchlist: 'Watchlist hozz\u00e1ad\u00e1sa', remove: 'Elt\u00e1vol\u00edt\u00e1s', save: 'Ment\u00e9s', saving: 'Ment\u00e9s...', authenticating: 'Hiteles\u00edt\u00e9s...',
+            addWatchlist: 'Watchlist hozz\u00e1ad\u00e1sa', remove: 'Elt\u00e1vol\u00edt\u00e1s', save: 'Ment\u00e9s', saving: 'Ment\u00e9s...',
             settingsSaved: 'Be\u00e1ll\u00edt\u00e1sok mentve.', errorSaving: 'Hiba a ment\u00e9s sor\u00e1n.', authFailed: 'Hiteles\u00edt\u00e9s sikertelen.'
         },
         sv: {
             login: 'Letterboxd-inloggning', username: 'Letterboxd-anv\u00e4ndarnamn', password: 'Letterboxd-l\u00f6senord',
-            rawCookies: 'R\u00e5kakor', cookiesHelp: 'Vid 403-fel, klistra in cookies fr\u00e5n webl\u00e4saren efter att ha bes\u00f6kt letterboxd.com.',
             options: 'Alternativ', enableSync: 'Aktivera synkronisering', enableSyncDesc: 'Synkroniserar filmer sedda av denna anv\u00e4ndare',
             sendFavorites: 'Skicka favoriter', dateFiltering: 'Datumfiltrering', enableDateFilter: 'Aktivera datumfiltrering',
             enableDateFilterDesc: 'Synkronisera bara filmer sedda inom angivet antal dagar', daysToLookBack: 'Antal dagar',
             watchlistSync: 'Watchlist-synkronisering', watchlistDesc: 'L\u00e4gg till Letterboxd-anv\u00e4ndarnamn vars offentliga watchlists du vill synkronisera som spellistor.',
-            addWatchlist: 'L\u00e4gg till watchlist', remove: 'Ta bort', save: 'Spara', saving: 'Sparar...', authenticating: 'Autentiserar...',
+            addWatchlist: 'L\u00e4gg till watchlist', remove: 'Ta bort', save: 'Spara', saving: 'Sparar...',
             settingsSaved: 'Inst\u00e4llningar sparade.', errorSaving: 'Fel vid sparande.', authFailed: 'Autentisering misslyckades.'
         },
         da: {
             login: 'Letterboxd-login', username: 'Letterboxd-brugernavn', password: 'Letterboxd-adgangskode',
-            rawCookies: 'R\u00e5 cookies', cookiesHelp: 'Ved 403-fejl, inds\u00e6t cookies fra browseren efter bes\u00f8g p\u00e5 letterboxd.com.',
             options: 'Indstillinger', enableSync: 'Aktiv\u00e9r synkronisering', enableSyncDesc: 'Synkroniserer film set af denne bruger',
             sendFavorites: 'Send favoritter', dateFiltering: 'Datofiltrering', enableDateFilter: 'Aktiv\u00e9r datofiltrering',
             enableDateFilterDesc: 'Synkroniser kun film set inden for det angivne antal dage', daysToLookBack: 'Antal dage',
             watchlistSync: 'Watchlist-synkronisering', watchlistDesc: 'Tilf\u00f8j Letterboxd-brugernavne, hvis offentlige watchlists du vil synkronisere som afspilningslister.',
-            addWatchlist: 'Tilf\u00f8j watchlist', remove: 'Fjern', save: 'Gem', saving: 'Gemmer...', authenticating: 'Godkender...',
+            addWatchlist: 'Tilf\u00f8j watchlist', remove: 'Fjern', save: 'Gem', saving: 'Gemmer...',
             settingsSaved: 'Indstillinger gemt.', errorSaving: 'Fejl ved lagring.', authFailed: 'Godkendelse mislykkedes.'
         },
         no: {
             login: 'Letterboxd-innlogging', username: 'Letterboxd-brukernavn', password: 'Letterboxd-passord',
-            rawCookies: 'R\u00e5 informasjonskapsler', cookiesHelp: 'Ved 403-feil, lim inn informasjonskapsler fra nettleseren etter \u00e5 ha bes\u00f8kt letterboxd.com.',
             options: 'Alternativer', enableSync: 'Aktiver synkronisering', enableSyncDesc: 'Synkroniserer filmer sett av denne brukeren',
             sendFavorites: 'Send favoritter', dateFiltering: 'Datofiltrering', enableDateFilter: 'Aktiver datofiltrering',
             enableDateFilterDesc: 'Synkroniser kun filmer sett innen angitt antall dager', daysToLookBack: 'Antall dager',
             watchlistSync: 'Watchlist-synkronisering', watchlistDesc: 'Legg til Letterboxd-brukernavn hvis offentlige watchlister du vil synkronisere som spillelister.',
-            addWatchlist: 'Legg til watchlist', remove: 'Fjern', save: 'Lagre', saving: 'Lagrer...', authenticating: 'Autentiserer...',
+            addWatchlist: 'Legg til watchlist', remove: 'Fjern', save: 'Lagre', saving: 'Lagrer...',
             settingsSaved: 'Innstillinger lagret.', errorSaving: 'Feil ved lagring.', authFailed: 'Autentisering mislyktes.'
         },
         fi: {
             login: 'Letterboxd-kirjautuminen', username: 'Letterboxd-k\u00e4ytt\u00e4j\u00e4nimi', password: 'Letterboxd-salasana',
-            rawCookies: 'Raaka-ev\u00e4steet', cookiesHelp: '403-virheiden yhteydess\u00e4 liit\u00e4 selaimen ev\u00e4steet letterboxd.com-vierailun j\u00e4lkeen.',
             options: 'Asetukset', enableSync: 'Ota synkronointi k\u00e4ytt\u00f6\u00f6n', enableSyncDesc: 'Synkronoi t\u00e4m\u00e4n k\u00e4ytt\u00e4j\u00e4n katselemat elokuvat',
             sendFavorites: 'L\u00e4het\u00e4 suosikit', dateFiltering: 'P\u00e4iv\u00e4m\u00e4\u00e4r\u00e4suodatus', enableDateFilter: 'Ota p\u00e4iv\u00e4m\u00e4\u00e4r\u00e4suodatus k\u00e4ytt\u00f6\u00f6n',
             enableDateFilterDesc: 'Synkronoi vain m\u00e4\u00e4ritetyn p\u00e4iv\u00e4m\u00e4\u00e4r\u00e4n sis\u00e4ll\u00e4 katsotut elokuvat', daysToLookBack: 'P\u00e4ivien m\u00e4\u00e4r\u00e4',
             watchlistSync: 'Watchlist-synkronointi', watchlistDesc: 'Lis\u00e4\u00e4 Letterboxd-k\u00e4ytt\u00e4j\u00e4nimi\u00e4, joiden julkiset watchlistit haluat synkronoida soittolistoiksi.',
-            addWatchlist: 'Lis\u00e4\u00e4 watchlist', remove: 'Poista', save: 'Tallenna', saving: 'Tallennetaan...', authenticating: 'Todennetaan...',
+            addWatchlist: 'Lis\u00e4\u00e4 watchlist', remove: 'Poista', save: 'Tallenna', saving: 'Tallennetaan...',
             settingsSaved: 'Asetukset tallennettu.', errorSaving: 'Virhe tallennuksessa.', authFailed: 'Todennus ep\u00e4onnistui.'
         },
         el: {
             login: '\u03a3\u03cd\u03bd\u03b4\u03b5\u03c3\u03b7 Letterboxd', username: '\u038c\u03bd\u03bf\u03bc\u03b1 \u03c7\u03c1\u03ae\u03c3\u03c4\u03b7 Letterboxd', password: '\u039a\u03c9\u03b4\u03b9\u03ba\u03cc\u03c2 Letterboxd',
-            rawCookies: 'Cookies', cookiesHelp: '\u03a3\u03b5 \u03c3\u03c6\u03ac\u03bb\u03bc\u03b1\u03c4\u03b1 403, \u03b5\u03c0\u03b9\u03ba\u03bf\u03bb\u03bb\u03ae\u03c3\u03c4\u03b5 \u03c4\u03b1 cookies \u03c4\u03bf\u03c5 \u03c0\u03c1\u03bf\u03b3\u03c1\u03ac\u03bc\u03bc\u03b1\u03c4\u03bf\u03c2 \u03c0\u03b5\u03c1\u03b9\u03ae\u03b3\u03b7\u03c3\u03b7\u03c2 \u03bc\u03b5\u03c4\u03ac \u03c4\u03b7\u03bd \u03b5\u03c0\u03af\u03c3\u03ba\u03b5\u03c8\u03b7 \u03c3\u03c4\u03bf letterboxd.com.',
             options: '\u0395\u03c0\u03b9\u03bb\u03bf\u03b3\u03ad\u03c2', enableSync: '\u0395\u03bd\u03b5\u03c1\u03b3\u03bf\u03c0\u03bf\u03af\u03b7\u03c3\u03b7 \u03c3\u03c5\u03b3\u03c7\u03c1\u03bf\u03bd\u03b9\u03c3\u03bc\u03bf\u03cd', enableSyncDesc: '\u03a3\u03c5\u03b3\u03c7\u03c1\u03bf\u03bd\u03af\u03b6\u03b5\u03b9 \u03c4\u03b9\u03c2 \u03c4\u03b1\u03b9\u03bd\u03af\u03b5\u03c2 \u03c0\u03bf\u03c5 \u03b5\u03af\u03b4\u03b5 \u03b1\u03c5\u03c4\u03cc\u03c2 \u03bf \u03c7\u03c1\u03ae\u03c3\u03c4\u03b7\u03c2',
             sendFavorites: '\u0391\u03c0\u03bf\u03c3\u03c4\u03bf\u03bb\u03ae \u03b1\u03b3\u03b1\u03c0\u03b7\u03bc\u03ad\u03bd\u03c9\u03bd', dateFiltering: '\u03a6\u03b9\u03bb\u03c4\u03c1\u03ac\u03c1\u03b9\u03c3\u03bc\u03b1 \u03b7\u03bc\u03b5\u03c1\u03bf\u03bc\u03b7\u03bd\u03af\u03b1\u03c2', enableDateFilter: '\u0395\u03bd\u03b5\u03c1\u03b3\u03bf\u03c0\u03bf\u03af\u03b7\u03c3\u03b7 \u03c6\u03b9\u03bb\u03c4\u03c1\u03b1\u03c1\u03af\u03c3\u03bc\u03b1\u03c4\u03bf\u03c2',
             enableDateFilterDesc: '\u03a3\u03c5\u03b3\u03c7\u03c1\u03bf\u03bd\u03b9\u03c3\u03bc\u03cc\u03c2 \u03bc\u03cc\u03bd\u03bf \u03c4\u03b1\u03b9\u03bd\u03b9\u03ce\u03bd \u03c0\u03bf\u03c5 \u03c0\u03c1\u03bf\u03b2\u03bb\u03ae\u03b8\u03b7\u03ba\u03b1\u03bd \u03b5\u03bd\u03c4\u03cc\u03c2 \u03c4\u03c9\u03bd \u03ba\u03b1\u03b8\u03bf\u03c1\u03b9\u03c3\u03bc\u03ad\u03bd\u03c9\u03bd \u03b7\u03bc\u03b5\u03c1\u03ce\u03bd', daysToLookBack: '\u0391\u03c1\u03b9\u03b8\u03bc\u03cc\u03c2 \u03b7\u03bc\u03b5\u03c1\u03ce\u03bd',
             watchlistSync: '\u03a3\u03c5\u03b3\u03c7\u03c1\u03bf\u03bd\u03b9\u03c3\u03bc\u03cc\u03c2 watchlist', watchlistDesc: '\u03a0\u03c1\u03bf\u03c3\u03b8\u03ad\u03c3\u03c4\u03b5 \u03c7\u03c1\u03ae\u03c3\u03c4\u03b5\u03c2 Letterboxd \u03c4\u03c9\u03bd \u03bf\u03c0\u03bf\u03af\u03c9\u03bd \u03c4\u03b9\u03c2 \u03b4\u03b7\u03bc\u03cc\u03c3\u03b9\u03b5\u03c2 watchlists \u03b8\u03ad\u03bb\u03b5\u03c4\u03b5 \u03bd\u03b1 \u03c3\u03c5\u03b3\u03c7\u03c1\u03bf\u03bd\u03af\u03c3\u03b5\u03c4\u03b5.',
-            addWatchlist: '\u03a0\u03c1\u03bf\u03c3\u03b8\u03ae\u03ba\u03b7 watchlist', remove: '\u0391\u03c6\u03b1\u03af\u03c1\u03b5\u03c3\u03b7', save: '\u0391\u03c0\u03bf\u03b8\u03ae\u03ba\u03b5\u03c5\u03c3\u03b7', saving: '\u0391\u03c0\u03bf\u03b8\u03ae\u03ba\u03b5\u03c5\u03c3\u03b7...', authenticating: '\u0388\u03bb\u03b5\u03b3\u03c7\u03bf\u03c2...',
+            addWatchlist: '\u03a0\u03c1\u03bf\u03c3\u03b8\u03ae\u03ba\u03b7 watchlist', remove: '\u0391\u03c6\u03b1\u03af\u03c1\u03b5\u03c3\u03b7', save: '\u0391\u03c0\u03bf\u03b8\u03ae\u03ba\u03b5\u03c5\u03c3\u03b7', saving: '\u0391\u03c0\u03bf\u03b8\u03ae\u03ba\u03b5\u03c5\u03c3\u03b7...',
             settingsSaved: '\u03a1\u03c5\u03b8\u03bc\u03af\u03c3\u03b5\u03b9\u03c2 \u03b1\u03c0\u03bf\u03b8\u03b7\u03ba\u03b5\u03cd\u03c4\u03b7\u03ba\u03b1\u03bd.', errorSaving: '\u03a3\u03c6\u03ac\u03bb\u03bc\u03b1 \u03b1\u03c0\u03bf\u03b8\u03ae\u03ba\u03b5\u03c5\u03c3\u03b7\u03c2.', authFailed: '\u0391\u03c0\u03bf\u03c4\u03c5\u03c7\u03af\u03b1 \u03b5\u03bb\u03ad\u03b3\u03c7\u03bf\u03c5.'
         },
         ru: {
             login: '\u0412\u0445\u043e\u0434 Letterboxd', username: '\u0418\u043c\u044f \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f Letterboxd', password: '\u041f\u0430\u0440\u043e\u043b\u044c Letterboxd',
-            rawCookies: 'Cookie-\u0444\u0430\u0439\u043b\u044b', cookiesHelp: '\u041f\u0440\u0438 \u043e\u0448\u0438\u0431\u043a\u0435 403 \u0432\u0441\u0442\u0430\u0432\u044c\u0442\u0435 cookies \u0438\u0437 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f letterboxd.com.',
             options: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', enableSync: '\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044e', enableSyncDesc: '\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u0443\u0435\u0442 \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043d\u044b\u0435 \u044d\u0442\u0438\u043c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c \u0444\u0438\u043b\u044c\u043c\u044b',
             sendFavorites: '\u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435', dateFiltering: '\u0424\u0438\u043b\u044c\u0442\u0440 \u043f\u043e \u0434\u0430\u0442\u0435', enableDateFilter: '\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440 \u043f\u043e \u0434\u0430\u0442\u0435',
             enableDateFilterDesc: '\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0444\u0438\u043b\u044c\u043c\u044b \u0437\u0430 \u0443\u043a\u0430\u0437\u0430\u043d\u043d\u043e\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0434\u043d\u0435\u0439', daysToLookBack: '\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0434\u043d\u0435\u0439',
             watchlistSync: '\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u0441\u043f\u0438\u0441\u043a\u043e\u0432', watchlistDesc: '\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439 Letterboxd, \u0447\u044c\u0438 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0435 \u0441\u043f\u0438\u0441\u043a\u0438 \u0432\u044b \u0445\u043e\u0442\u0438\u0442\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c.',
-            addWatchlist: '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a', remove: '\u0423\u0434\u0430\u043b\u0438\u0442\u044c', save: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c', saving: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...', authenticating: '\u0410\u0443\u0442\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f...',
+            addWatchlist: '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a', remove: '\u0423\u0434\u0430\u043b\u0438\u0442\u044c', save: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c', saving: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...',
             settingsSaved: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.', errorSaving: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f.', authFailed: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0430\u0443\u0442\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u0438.'
         },
         hi: {
             login: 'Letterboxd \u0932\u0949\u0917\u0907\u0928', username: 'Letterboxd \u0909\u092a\u092f\u094b\u0917\u0915\u0930\u094d\u0924\u093e \u0928\u093e\u092e', password: 'Letterboxd \u092a\u093e\u0938\u0935\u0930\u094d\u0921',
-            rawCookies: '\u0915\u0941\u0915\u0940\u091c\u093c', cookiesHelp: '403 \u0924\u094d\u0930\u0941\u091f\u093f \u092e\u093f\u0932\u0928\u0947 \u092a\u0930 letterboxd.com \u092a\u0930 \u091c\u093e\u0928\u0947 \u0915\u0947 \u092c\u093e\u0926 \u0905\u092a\u0928\u0947 \u092c\u094d\u0930\u093e\u0909\u091c\u093c\u0930 \u0915\u0940 \u0915\u0941\u0915\u0940\u091c\u093c \u092a\u0947\u0938\u094d\u091f \u0915\u0930\u0947\u0902\u0964',
             options: '\u0935\u093f\u0915\u0932\u094d\u092a', enableSync: '\u0938\u093f\u0902\u0915 \u0938\u0915\u094d\u0937\u092e \u0915\u0930\u0947\u0902', enableSyncDesc: '\u0907\u0938 \u0909\u092a\u092f\u094b\u0917\u0915\u0930\u094d\u0924\u093e \u0926\u094d\u0935\u093e\u0930\u093e \u0926\u0947\u0916\u0940 \u0917\u0908 \u0938\u092d\u0940 \u092b\u093f\u0932\u094d\u092e\u094b\u0902 \u0915\u094b \u0938\u093f\u0902\u0915 \u0915\u0930\u0924\u093e \u0939\u0948',
             sendFavorites: '\u092a\u0938\u0902\u0926\u0940\u0926\u093e \u092d\u0947\u091c\u0947\u0902', dateFiltering: '\u0924\u093f\u0925\u093f \u092b\u093c\u093f\u0932\u094d\u091f\u0930', enableDateFilter: '\u0924\u093f\u0925\u093f \u092b\u093c\u093f\u0932\u094d\u091f\u0930 \u0938\u0915\u094d\u0937\u092e \u0915\u0930\u0947\u0902',
             enableDateFilterDesc: '\u0915\u0947\u0935\u0932 \u0928\u093f\u0930\u094d\u0927\u093e\u0930\u093f\u0924 \u0926\u093f\u0928\u094b\u0902 \u092e\u0947\u0902 \u0926\u0947\u0916\u0940 \u0917\u0908 \u092b\u093f\u0932\u094d\u092e\u0947\u0902 \u0938\u093f\u0902\u0915 \u0915\u0930\u0947\u0902', daysToLookBack: '\u0926\u093f\u0928\u094b\u0902 \u0915\u0940 \u0938\u0902\u0916\u094d\u092f\u093e',
             watchlistSync: '\u0935\u0949\u091a\u0932\u093f\u0938\u094d\u091f \u0938\u093f\u0902\u0915', watchlistDesc: 'Letterboxd \u0909\u092a\u092f\u094b\u0917\u0915\u0930\u094d\u0924\u093e \u0928\u093e\u092e \u091c\u094b\u0921\u093c\u0947\u0902 \u091c\u093f\u0928\u0915\u0940 \u0938\u093e\u0930\u094d\u0935\u091c\u0928\u093f\u0915 \u0935\u0949\u091a\u0932\u093f\u0938\u094d\u091f \u0906\u092a \u092a\u094d\u0932\u0947\u0932\u093f\u0938\u094d\u091f \u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u0938\u093f\u0902\u0915 \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u0924\u0947 \u0939\u0948\u0902\u0964',
-            addWatchlist: '\u0935\u0949\u091a\u0932\u093f\u0938\u094d\u091f \u091c\u094b\u0921\u093c\u0947\u0902', remove: '\u0939\u091f\u093e\u090f\u0902', save: '\u0938\u0939\u0947\u091c\u0947\u0902', saving: '\u0938\u0939\u0947\u091c\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948...', authenticating: '\u092a\u094d\u0930\u092e\u093e\u0923\u0940\u0915\u0930\u0923...',
+            addWatchlist: '\u0935\u0949\u091a\u0932\u093f\u0938\u094d\u091f \u091c\u094b\u0921\u093c\u0947\u0902', remove: '\u0939\u091f\u093e\u090f\u0902', save: '\u0938\u0939\u0947\u091c\u0947\u0902', saving: '\u0938\u0939\u0947\u091c\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948...',
             settingsSaved: '\u0938\u0947\u091f\u093f\u0902\u0917\u094d\u0938 \u0938\u0939\u0947\u091c\u0940 \u0917\u0908\u0902\u0964', errorSaving: '\u0938\u0939\u0947\u091c\u0928\u0947 \u092e\u0947\u0902 \u0924\u094d\u0930\u0941\u091f\u093f\u0964', authFailed: '\u092a\u094d\u0930\u092e\u093e\u0923\u0940\u0915\u0930\u0923 \u0935\u093f\u092b\u0932\u0964'
         },
         zh: {
             login: 'Letterboxd \u767b\u5f55', username: 'Letterboxd \u7528\u6237\u540d', password: 'Letterboxd \u5bc6\u7801',
-            rawCookies: '\u539f\u59cb Cookies', cookiesHelp: '\u5982\u679c\u51fa\u73b0 403 \u9519\u8bef\uff0c\u8bf7\u5728\u8bbf\u95ee letterboxd.com \u540e\u7c98\u8d34\u6d4f\u89c8\u5668\u7684 cookies\u3002',
             options: '\u9009\u9879', enableSync: '\u542f\u7528\u540c\u6b65', enableSyncDesc: '\u540c\u6b65\u6b64\u7528\u6237\u89c2\u770b\u8fc7\u7684\u7535\u5f71',
             sendFavorites: '\u53d1\u9001\u6536\u85cf', dateFiltering: '\u65e5\u671f\u8fc7\u6ee4', enableDateFilter: '\u542f\u7528\u65e5\u671f\u8fc7\u6ee4',
             enableDateFilterDesc: '\u4ec5\u540c\u6b65\u6307\u5b9a\u5929\u6570\u5185\u89c2\u770b\u7684\u7535\u5f71', daysToLookBack: '\u56de\u770b\u5929\u6570',
             watchlistSync: '\u7247\u5355\u540c\u6b65', watchlistDesc: '\u6dfb\u52a0 Letterboxd \u7528\u6237\u540d\uff0c\u5c06\u5176\u516c\u5f00\u7247\u5355\u540c\u6b65\u4e3a\u64ad\u653e\u5217\u8868\u3002',
-            addWatchlist: '\u6dfb\u52a0\u7247\u5355', remove: '\u5220\u9664', save: '\u4fdd\u5b58', saving: '\u4fdd\u5b58\u4e2d...', authenticating: '\u8ba4\u8bc1\u4e2d...',
+            addWatchlist: '\u6dfb\u52a0\u7247\u5355', remove: '\u5220\u9664', save: '\u4fdd\u5b58', saving: '\u4fdd\u5b58\u4e2d...',
             settingsSaved: '\u8bbe\u7f6e\u5df2\u4fdd\u5b58\u3002', errorSaving: '\u4fdd\u5b58\u5931\u8d25\u3002', authFailed: '\u8ba4\u8bc1\u5931\u8d25\u3002'
         },
         ja: {
             login: 'Letterboxd \u30ed\u30b0\u30a4\u30f3', username: 'Letterboxd \u30e6\u30fc\u30b6\u30fc\u540d', password: 'Letterboxd \u30d1\u30b9\u30ef\u30fc\u30c9',
-            rawCookies: 'Cookie', cookiesHelp: '403\u30a8\u30e9\u30fc\u304c\u767a\u751f\u3057\u305f\u5834\u5408\u3001letterboxd.com\u3092\u8a2a\u554f\u5f8c\u306b\u30d6\u30e9\u30a6\u30b6\u306eCookie\u3092\u8cbc\u308a\u4ed8\u3051\u3066\u304f\u3060\u3055\u3044\u3002',
             options: '\u30aa\u30d7\u30b7\u30e7\u30f3', enableSync: '\u540c\u671f\u3092\u6709\u52b9\u306b\u3059\u308b', enableSyncDesc: '\u3053\u306e\u30e6\u30fc\u30b6\u30fc\u304c\u8996\u8074\u3057\u305f\u6620\u753b\u3092\u540c\u671f\u3057\u307e\u3059',
             sendFavorites: '\u304a\u6c17\u306b\u5165\u308a\u3092\u9001\u4fe1', dateFiltering: '\u65e5\u4ed8\u30d5\u30a3\u30eb\u30bf\u30fc', enableDateFilter: '\u65e5\u4ed8\u30d5\u30a3\u30eb\u30bf\u30fc\u3092\u6709\u52b9\u306b\u3059\u308b',
             enableDateFilterDesc: '\u6307\u5b9a\u3057\u305f\u65e5\u6570\u4ee5\u5185\u306b\u8996\u8074\u3057\u305f\u6620\u753b\u306e\u307f\u540c\u671f', daysToLookBack: '\u65e5\u6570',
             watchlistSync: '\u30a6\u30a9\u30c3\u30c1\u30ea\u30b9\u30c8\u540c\u671f', watchlistDesc: '\u516c\u958b\u30a6\u30a9\u30c3\u30c1\u30ea\u30b9\u30c8\u3092\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u3068\u3057\u3066\u540c\u671f\u3059\u308bLetterboxd\u30e6\u30fc\u30b6\u30fc\u540d\u3092\u8ffd\u52a0\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
-            addWatchlist: '\u30a6\u30a9\u30c3\u30c1\u30ea\u30b9\u30c8\u3092\u8ffd\u52a0', remove: '\u524a\u9664', save: '\u4fdd\u5b58', saving: '\u4fdd\u5b58\u4e2d...', authenticating: '\u8a8d\u8a3c\u4e2d...',
+            addWatchlist: '\u30a6\u30a9\u30c3\u30c1\u30ea\u30b9\u30c8\u3092\u8ffd\u52a0', remove: '\u524a\u9664', save: '\u4fdd\u5b58', saving: '\u4fdd\u5b58\u4e2d...',
             settingsSaved: '\u8a2d\u5b9a\u304c\u4fdd\u5b58\u3055\u308c\u307e\u3057\u305f\u3002', errorSaving: '\u4fdd\u5b58\u30a8\u30e9\u30fc\u3002', authFailed: '\u8a8d\u8a3c\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002'
         }
     };
@@ -351,9 +313,6 @@
     var t = STRINGS[lang] || STRINGS.en;
 
     // Store initial credentials to detect changes
-    var _initialUsername = '';
-    var _initialPassword = '';
-    var _initialCookies = '';
 
     // ===== Sidebar injection =====
     function injectSidebarEntry() {

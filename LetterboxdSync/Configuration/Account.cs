@@ -20,9 +20,6 @@ public class Account
     /// </summary>
     public string? RefreshToken { get; set; }
 
-    /// <summary>Deprecated. Kept only for backwards-compatible deserialization of old configs.</summary>
-    public string? CookiesRaw { get; set; }
-
     public bool Enable { get; set; }
 
     public bool SendFavorite { get; set; }
