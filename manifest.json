@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "2.0.1.0",
+        "changelog": "- fix: accept HTTP 200 from POST /log-entries (1aa8314)\n- style: split types into their own files and satisfy StyleCop (8774dee)\n- fix: include the test project in the solution so CI runs the tests (8151e6a)\n- chore(release): v2.0.0 [skip ci] (d46beef)",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v2.0.1/jellyfin-plugin-letterboxd-sync-v2.0.1.zip",
+        "checksum": "2bd3c2cb895a8ca93782ad4246f93082",
+        "timestamp": "2026-07-06T13:45:44Z"
+      },
+      {
         "version": "2.0.0.0",
         "changelog": "- ci: tag-driven publish (draft -> test -> release) and bump to 2.0.0 (42c9d29)\n- test: add CI workflow and opt-in authenticated integration tests (1248f5b)\n- feat!: migrate to the official Letterboxd API (fix #4, #5, #6) (3ba3605)",
         "targetAbi": "10.11.9.0",
