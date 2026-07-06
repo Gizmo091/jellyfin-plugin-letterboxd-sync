@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore LetterboxdSync.sln
+
+      - name: Build
+        run: dotnet build LetterboxdSync.sln --configuration Release --no-restore
+
+      # The read-path tests hit the public Letterboxd API and always run.
+      # The write-path tests (LetterboxdApiWriteTests) are opt-in: they only run when
+      # LETTERBOXD_RUN_WRITE_TESTS=true, which we set ONLY for a manual run (workflow_dispatch), so
+      # ordinary pushes don't hit the test account. They clean up after themselves. Secrets are never
+      # exposed to fork PR workflows, so they stay safe there too.
+      - name: Test
+        env:
+          LETTERBOXD_TEST_USERNAME: ${{ secrets.LETTERBOXD_TEST_USERNAME }}
+          LETTERBOXD_TEST_PASSWORD: ${{ secrets.LETTERBOXD_TEST_PASSWORD }}
+          LETTERBOXD_RUN_WRITE_TESTS: ${{ github.event_name == 'workflow_dispatch' }}
+        run: dotnet test LetterboxdSync.sln --configuration Release --no-build --verbosity normal
