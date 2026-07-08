@@ -450,6 +450,24 @@
             '      <span class="checkboxLabel">' + t.sendFavorites + '</span>' + chk,
             '    </label>',
             '  </div>',
+            '  <div class="checkboxContainer checkboxContainer-withDescription">',
+            '    <label class="emby-checkbox-label">',
+            '      <input is="emby-checkbox" type="checkbox" id="lbxd-sendrating" data-embycheckbox="true" class="emby-checkbox" />',
+            '      <span class="checkboxLabel">' + (t.sendRating || 'Send Rating') + '</span>' + chk,
+            '    </label>',
+            '  </div>',
+            '  <div class="checkboxContainer checkboxContainer-withDescription">',
+            '    <label class="emby-checkbox-label">',
+            '      <input is="emby-checkbox" type="checkbox" id="lbxd-realtimesync" data-embycheckbox="true" class="emby-checkbox" />',
+            '      <span class="checkboxLabel">' + (t.realtimeSync || 'Real-time Sync') + '</span>' + chk,
+            '    </label>',
+            '  </div>',
+            '  <div class="checkboxContainer checkboxContainer-withDescription">',
+            '    <label class="emby-checkbox-label">',
+            '      <input is="emby-checkbox" type="checkbox" id="lbxd-importdiary" data-embycheckbox="true" class="emby-checkbox" />',
+            '      <span class="checkboxLabel">' + (t.importDiary || 'Import Diary') + '</span>' + chk,
+            '    </label>',
+            '  </div>',
             '  <h3>' + t.dateFiltering + '</h3>',
             '  <div class="checkboxContainer checkboxContainer-withDescription">',
             '    <label class="emby-checkbox-label">',
@@ -464,6 +482,7 @@
             '  </div>',
             '  <h3>' + t.watchlistSync + '</h3>',
             '  <div class="fieldDescription" style="margin-bottom:0.5em;">' + t.watchlistDesc + '</div>',
+            '  <div class="fieldDescription" id="lbxd-seerr-hint" style="margin-bottom:0.5em;"></div>',
             '  <div id="lbxd-watchlist-container"></div>',
             '  <button type="button" id="lbxd-add-watchlist" class="raised emby-button" style="margin:0.5em 0;">',
             '    <span>' + t.addWatchlist + '</span>',
@@ -512,6 +531,9 @@
             view.querySelector('#lbxd-key').value = '';
             view.querySelector('#lbxd-enable').checked = account.enable || false;
             view.querySelector('#lbxd-sendfavorite').checked = account.sendFavorite || false;
+            view.querySelector('#lbxd-sendrating').checked = account.sendRating;
+            view.querySelector('#lbxd-realtimesync').checked = account.enableRealtimeSync;
+            view.querySelector('#lbxd-importdiary').checked = account.importDiary || false;
             view.querySelector('#lbxd-datefilter').checked = account.enableDateFilter || false;
             view.querySelector('#lbxd-datedays').value = account.dateFilterDays || 7;
 
@@ -522,16 +544,23 @@
                     : (t.notLinked || 'Not linked. Enter your Letterboxd credentials. Your password is exchanged for a token on save and is never stored.');
             }
 
+            var seerrHint = view.querySelector('#lbxd-seerr-hint');
+            if (seerrHint) {
+                seerrHint.textContent = account.seerrConfigured
+                    ? ''
+                    : (t.seerrHint || 'Auto-request has no effect until an administrator configures Seerr in the plugin settings.');
+            }
+
             var container = view.querySelector('#lbxd-watchlist-container');
             container.innerHTML = '';
-            var usernames = account.watchlistUsernames || [];
-            for (var i = 0; i < usernames.length; i++) {
-                addWatchlistEntry(container, usernames[i]);
+            var entries = account.watchlists || [];
+            for (var i = 0; i < entries.length; i++) {
+                addWatchlistEntry(container, entries[i].input, entries[i].autoRequest);
             }
         });
     }
 
-    function addWatchlistEntry(container, value) {
+    function addWatchlistEntry(container, value, autoRequest) {
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:0.5em;';
 
@@ -543,6 +572,15 @@
         input.value = value || '';
         input.style.flex = '1';
 
+        var autoLabel = document.createElement('label');
+        autoLabel.style.cssText = 'display:flex;align-items:center;gap:4px;white-space:nowrap;';
+        var autoCheck = document.createElement('input');
+        autoCheck.type = 'checkbox';
+        autoCheck.className = 'watchlist-autorequest';
+        autoCheck.checked = !!autoRequest;
+        autoLabel.appendChild(autoCheck);
+        autoLabel.appendChild(document.createTextNode(t.autoRequest || 'Auto-request'));
+
         var removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.className = 'raised emby-button';
@@ -552,6 +590,7 @@
         });
 
         row.appendChild(input);
+        row.appendChild(autoLabel);
         row.appendChild(removeBtn);
         container.appendChild(row);
     }
@@ -570,17 +609,23 @@
                 PasswordLetterboxd: view.querySelector('#lbxd-key').value,
                 Enable: view.querySelector('#lbxd-enable').checked,
                 SendFavorite: view.querySelector('#lbxd-sendfavorite').checked,
+                SendRating: view.querySelector('#lbxd-sendrating').checked,
+                EnableRealtimeSync: view.querySelector('#lbxd-realtimesync').checked,
+                ImportDiary: view.querySelector('#lbxd-importdiary').checked,
                 EnableDateFilter: view.querySelector('#lbxd-datefilter').checked,
                 DateFilterDays: parseInt(view.querySelector('#lbxd-datedays').value) || 7,
-                WatchlistUsernames: []
+                Watchlists: []
             };
 
             var inputs = view.querySelectorAll('.watchlist-entry');
             for (var i = 0; i < inputs.length; i++) {
                 var val = inputs[i].value.trim();
-                if (val) {
-                    configUser.WatchlistUsernames.push(val);
+                if (!val) {
+                    continue;
                 }
+                var row = inputs[i].closest('div');
+                var check = row ? row.querySelector('.watchlist-autorequest') : null;
+                configUser.Watchlists.push({ Input: val, AutoRequest: !!(check && check.checked) });
             }
 
             var data = JSON.stringify(configUser);

@@ -1,7 +1,7 @@
 
 export default function (view, params) {
 
-    function addWatchlistEntry(container, value) {
+    function addWatchlistEntry(container, value, autoRequest) {
         var row = document.createElement('div');
         row.className = 'inputContainer';
         row.style.display = 'flex';
@@ -17,6 +17,18 @@ export default function (view, params) {
         input.value = value || '';
         input.style.flex = '1';
 
+        var autoLabel = document.createElement('label');
+        autoLabel.style.display = 'flex';
+        autoLabel.style.alignItems = 'center';
+        autoLabel.style.gap = '4px';
+        autoLabel.style.whiteSpace = 'nowrap';
+        var autoCheck = document.createElement('input');
+        autoCheck.type = 'checkbox';
+        autoCheck.className = 'watchlist-autorequest';
+        autoCheck.checked = !!autoRequest;
+        autoLabel.appendChild(autoCheck);
+        autoLabel.appendChild(document.createTextNode('Auto-request'));
+
         var removeBtn = document.createElement('button');
         removeBtn.setAttribute('is', 'emby-button');
         removeBtn.type = 'button';
@@ -27,8 +39,25 @@ export default function (view, params) {
         });
 
         row.appendChild(input);
+        row.appendChild(autoLabel);
         row.appendChild(removeBtn);
         container.appendChild(row);
+    }
+
+    function getWatchlists() {
+        var container = view.querySelector('#watchlistContainer');
+        var inputs = container.querySelectorAll('.watchlist-entry');
+        var result = [];
+        for (var i = 0; i < inputs.length; i++) {
+            var val = inputs[i].value.trim();
+            if (!val) {
+                continue;
+            }
+            var row = inputs[i].closest('.inputContainer');
+            var check = row ? row.querySelector('.watchlist-autorequest') : null;
+            result.push({ Input: val, AutoRequest: !!(check && check.checked) });
+        }
+        return result;
     }
 
     view.addEventListener('viewshow', function (e) {
@@ -55,9 +84,16 @@ export default function (view, params) {
             }
 
             container.innerHTML = '';
-            var usernames = account.watchlistUsernames || [];
-            for (var i = 0; i < usernames.length; i++) {
-                addWatchlistEntry(container, usernames[i]);
+            var entries = account.watchlists || [];
+            for (var i = 0; i < entries.length; i++) {
+                addWatchlistEntry(container, entries[i].input, entries[i].autoRequest);
+            }
+
+            var hint = view.querySelector('#seerr-hint');
+            if (hint) {
+                hint.textContent = account.seerrConfigured
+                    ? ''
+                    : 'Auto-request has no effect until an administrator configures Seerr in the plugin settings.';
             }
         });
     });
@@ -84,15 +120,7 @@ export default function (view, params) {
         configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
         configUser.DateFilterDays = parseInt(view.querySelector('#datefilterdays').value) || 7;
 
-        var watchlistInputs = view.querySelectorAll('.watchlist-entry');
-        var watchlistUsernames = [];
-        for (var i = 0; i < watchlistInputs.length; i++) {
-            var val = watchlistInputs[i].value.trim();
-            if (val) {
-                watchlistUsernames.push(val);
-            }
-        }
-        configUser.WatchlistUsernames = watchlistUsernames;
+        configUser.Watchlists = getWatchlists();
 
         var data = JSON.stringify(configUser);
 

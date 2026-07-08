@@ -66,5 +66,29 @@ namespace LetterboxdSync.Tests
                 await api.DeleteLogEntry(logEntryId!);
             }
         }
+
+        [SkippableFact]
+        public async Task Diary_ResolveMemberAndReadEntries_ShouldParse()
+        {
+            Skip.IfNot(Enabled, SkipReason);
+
+            var api = new LetterboxdApi();
+            await api.AuthenticateWithPassword(User!, Password!);
+
+            // Validates the live /me and /log-entries?where=HasDiaryDate endpoints used by the diary
+            // import: the member resolves, the diary read returns 200, and every entry parses with a
+            // TMDB id and a diary date. (Read-only: a just-created entry is not immediately visible on
+            // the list endpoint, so we don't assert write-then-read visibility here.)
+            var memberId = await api.GetAuthenticatedMemberId();
+            Assert.False(string.IsNullOrEmpty(memberId));
+
+            var entries = await api.GetDiaryEntries(memberId!);
+            Assert.NotNull(entries);
+            Assert.All(entries, e =>
+            {
+                Assert.False(string.IsNullOrEmpty(e.TmdbId));
+                Assert.NotNull(e.DiaryDate);
+            });
+        }
     }
 }

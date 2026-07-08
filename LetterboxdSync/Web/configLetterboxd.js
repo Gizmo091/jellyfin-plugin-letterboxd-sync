@@ -6,7 +6,7 @@ export default function (view, params) {
     // Refresh token of the account currently loaded in the form (never shown in an input).
     var currentRefreshToken = null;
 
-    function addWatchlistEntry(container, value) {
+    function addWatchlistEntry(container, value, autoRequest) {
         var row = document.createElement('div');
         row.className = 'inputContainer';
         row.style.display = 'flex';
@@ -22,6 +22,18 @@ export default function (view, params) {
         input.value = value || '';
         input.style.flex = '1';
 
+        var autoLabel = document.createElement('label');
+        autoLabel.style.display = 'flex';
+        autoLabel.style.alignItems = 'center';
+        autoLabel.style.gap = '4px';
+        autoLabel.style.whiteSpace = 'nowrap';
+        var autoCheck = document.createElement('input');
+        autoCheck.type = 'checkbox';
+        autoCheck.className = 'watchlist-autorequest';
+        autoCheck.checked = !!autoRequest;
+        autoLabel.appendChild(autoCheck);
+        autoLabel.appendChild(document.createTextNode('Auto-request'));
+
         var removeBtn = document.createElement('button');
         removeBtn.setAttribute('is', 'emby-button');
         removeBtn.type = 'button';
@@ -32,29 +44,44 @@ export default function (view, params) {
         });
 
         row.appendChild(input);
+        row.appendChild(autoLabel);
         row.appendChild(removeBtn);
         container.appendChild(row);
+    }
+
+    function getEntriesFromAccount(accountData) {
+        var list = accountData.Watchlists;
+        if (list && list.length) {
+            return list.map(function (w) { return { input: w.Input, autoRequest: !!w.AutoRequest }; });
+        }
+        // Legacy migration: plain string usernames, auto-request off.
+        var legacy = accountData.WatchlistUsernames || [];
+        return legacy.map(function (u) { return { input: u, autoRequest: false }; });
     }
 
     function loadWatchlistForUser(accountData) {
         var container = view.querySelector('#watchlistContainer');
         container.innerHTML = '';
-        var usernames = accountData.WatchlistUsernames || [];
-        for (var i = 0; i < usernames.length; i++) {
-            addWatchlistEntry(container, usernames[i]);
+        var entries = getEntriesFromAccount(accountData);
+        for (var i = 0; i < entries.length; i++) {
+            addWatchlistEntry(container, entries[i].input, entries[i].autoRequest);
         }
     }
 
-    function getWatchlistUsernames() {
-        var watchlistInputs = view.querySelectorAll('.watchlist-entry');
-        var usernames = [];
-        for (var i = 0; i < watchlistInputs.length; i++) {
-            var val = watchlistInputs[i].value.trim();
-            if (val) {
-                usernames.push(val);
+    function getWatchlists() {
+        var container = view.querySelector('#watchlistContainer');
+        var inputs = container.querySelectorAll('.watchlist-entry');
+        var result = [];
+        for (var i = 0; i < inputs.length; i++) {
+            var val = inputs[i].value.trim();
+            if (!val) {
+                continue;
             }
+            var row = inputs[i].closest('.inputContainer');
+            var check = row ? row.querySelector('.watchlist-autorequest') : null;
+            result.push({ Input: val, AutoRequest: !!(check && check.checked) });
         }
-        return usernames;
+        return result;
     }
 
     function setLinkStatus(account) {
@@ -107,6 +134,8 @@ export default function (view, params) {
 
             const userSelectedId = selectUsers.value;
             ApiClient.getPluginConfiguration(pluginId).then(config => {
+                view.querySelector('#seerr-url').value = config.SeerrUrl || '';
+                view.querySelector('#seerr-apikey').value = config.SeerrApiKey || '';
                 populate(findAccount(config, userSelectedId));
             });
         });
@@ -146,7 +175,7 @@ export default function (view, params) {
             configUser.ImportDiary = view.querySelector('#importdiary').checked;
             configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
             configUser.DateFilterDays = parseInt(view.querySelector('#datefilterdays').value) || 7;
-            configUser.WatchlistUsernames = getWatchlistUsernames();
+            configUser.Watchlists = getWatchlists();
 
             // If a password was entered, use it to (re)link; otherwise keep the existing token.
             if (password) {
@@ -159,6 +188,8 @@ export default function (view, params) {
 
             function persist() {
                 configUser.PasswordLetterboxd = null;
+                config.SeerrUrl = view.querySelector('#seerr-url').value.trim();
+                config.SeerrApiKey = view.querySelector('#seerr-apikey').value.trim();
                 accountsUpdate.push(configUser);
                 config.Accounts = accountsUpdate;
                 ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {

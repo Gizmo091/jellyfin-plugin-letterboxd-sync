@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace LetterboxdSync.Configuration;
@@ -52,6 +54,29 @@ public class Account
 
     // Populate is required so System.Text.Json fills this read-only collection when Jellyfin
     // deserializes the updated plugin configuration (otherwise saved watchlists are dropped).
+    // Legacy: watchlists used to be plain strings. Kept for backward-compatible migration into
+    // Watchlists (see GetEffectiveWatchlists); the UI now writes Watchlists and leaves this empty.
     [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
     public Collection<string> WatchlistUsernames { get; } = new();
+
+    /// <summary>Gets the watchlists to mirror, each carrying its own auto-request flag.</summary>
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public Collection<WatchlistEntry> Watchlists { get; } = new();
+
+    /// <summary>
+    /// Returns the effective watchlists, migrating any legacy <see cref="WatchlistUsernames"/> entries
+    /// (with auto-request off) when <see cref="Watchlists"/> has not been populated yet.
+    /// </summary>
+    public IReadOnlyList<WatchlistEntry> GetEffectiveWatchlists()
+    {
+        if (Watchlists.Count > 0)
+        {
+            return Watchlists.Where(w => !string.IsNullOrWhiteSpace(w.Input)).ToList();
+        }
+
+        return WatchlistUsernames
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Select(u => new WatchlistEntry { Input = u, AutoRequest = false })
+            .ToList();
+    }
 }

@@ -69,7 +69,10 @@ public class LetterboxdSyncController : ControllerBase
             importDiary = account?.ImportDiary ?? false,
             enableDateFilter = account?.EnableDateFilter ?? false,
             dateFilterDays = account?.DateFilterDays ?? 7,
-            watchlistUsernames = (IEnumerable<string>?)account?.WatchlistUsernames ?? new List<string>(),
+            watchlists = (account?.GetEffectiveWatchlists() ?? new List<WatchlistEntry>())
+                .Select(w => new { input = w.Input, autoRequest = w.AutoRequest }),
+            seerrConfigured = !string.IsNullOrWhiteSpace(Plugin.Instance!.Configuration.SeerrUrl)
+                && !string.IsNullOrWhiteSpace(Plugin.Instance!.Configuration.SeerrApiKey),
             isLinked = !string.IsNullOrWhiteSpace(account?.RefreshToken),
         });
     }

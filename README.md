@@ -24,6 +24,7 @@ This plugin keeps your Jellyfin watch history in sync with your Letterboxd diary
 - **Favorites** — films favorited on Jellyfin are marked as "liked" on Letterboxd.
 - **Rewatches** — a film played more than once is logged as a rewatch.
 - **Watchlist import** — any public Letterboxd watchlist or list is mirrored into a Jellyfin playlist.
+- **Seerr auto-request** *(opt-in)* — films on a watchlist that are missing from your library can be automatically requested in [Seerr](https://github.com/seerr-team/seerr) / Jellyseerr / Overseerr, on behalf of the matching Jellyfin user.
 - **Diary import** *(opt-in)* — the reverse direction: films in your Letterboxd diary are marked as watched in Jellyfin.
 - **Resilient** — API calls automatically retry rate limits (`429`) and server errors with exponential backoff.
 
@@ -61,6 +62,8 @@ https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/maste
 - **`Send Rating`** (on by default) sends your Jellyfin personal rating as a Letterboxd star rating. Because Letterboxd only records a rating when a film is first logged, this never overwrites a rating you set on Letterboxd afterwards.
 
 - **`Import Diary`** (off by default) does the reverse: it reads your Letterboxd diary once a day and marks the matching films as watched in Jellyfin (using the diary date). It only ever marks films you haven't already watched in Jellyfin.
+
+- **Seerr auto-request** (off by default): set a **Seerr URL** and **API key** in the admin plugin settings, then tick **`Auto-request`** on any watchlist. During the watchlist sync, films on that list that are missing from your library are requested in Seerr **as the matching Jellyfin user** (mapped via `jellyfinUserId`), so Seerr applies that user's own approval and quota rules. If no Seerr account maps to the user, auto-requesting is skipped for them.
 
 - By default the plugin does a full sync to Letterboxd. Once the initial sync is done, it's advised to `Enable Date Filtering` with a short lookback to reduce load.
 

@@ -73,12 +73,24 @@
                     </div>
 
                     <h3>Watchlist Sync</h3>
-                    <div class="fieldDescription">Paste a watchlist link (letterboxd.com or boxd.it short link) or a Letterboxd username to sync their public watchlist as a playlist. No login required.</div>
+                    <div class="fieldDescription">Paste a watchlist link (letterboxd.com or boxd.it short link) or a Letterboxd username to sync their public watchlist as a playlist. No login required. Tick <b>Auto-request</b> to have films missing from your library requested in Seerr (configure Seerr below).</div>
                     <div id="watchlistContainer"></div>
                     <div>
                         <button id="addWatchlistBtn" is="emby-button" type="button" class="raised">
                             <span>Add Watchlist</span>
                         </button>
+                    </div>
+                    <br />
+
+                    <h3>Seerr Integration</h3>
+                    <div class="fieldDescription">Optional. Set a Seerr / Jellyseerr / Overseerr instance so watchlists marked <b>Auto-request</b> can request missing films. Requests are made on behalf of the matching Jellyfin user, so Seerr applies that user's own approval and quota rules. These settings are server-wide (shared by all users).</div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="seerr-url" label="Seerr URL" autocomplete="off" placeholder="http://localhost:5055" />
+                        <div class="fieldDescription">Base URL of your Seerr instance, e.g. <code>http://localhost:5055</code>. Leave empty to disable auto-requesting.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="seerr-apikey" label="Seerr API Key" autocomplete="new-password" />
+                        <div class="fieldDescription">From Seerr → Settings → General → API Key.</div>
                     </div>
                     <br />
 
