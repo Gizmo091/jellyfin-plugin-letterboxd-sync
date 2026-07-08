@@ -5,6 +5,7 @@ obj/
 artifacts
 # macOS
 .DS_Store
+.env
 
 # Windows
 Thumbs.db
