@@ -26,6 +26,9 @@ public class LetterboxdApi
     private const string ApiKey = "ebe3d27ec52a35fc8d1835c6531c37bd72b7a54337666d5bd759379b72ae16f0";
     private const string BaseUrl = "https://api.letterboxd.com/api/v0";
 
+    // Attempts per call before giving up (1 initial try + retries), used only for transient 429/5xx.
+    private const int MaxAttempts = 4;
+
     private static readonly byte[] ApiSecret = Encoding.ASCII.GetBytes("c60ce045d25bc90cb56026a8dd621eebeef995cbecc51951192da75348c977cd");
     private static readonly HttpClient Client = CreateClient();
 
@@ -76,10 +79,14 @@ public class LetterboxdApi
 
     private async Task RequestTokenAsync(string form)
     {
-        using var content = new StringContent(form, Encoding.UTF8);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+        HttpContent? ContentFactory()
+        {
+            var c = new StringContent(form, Encoding.UTF8);
+            c.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+            return c;
+        }
 
-        var (status, body) = await SendAsync(HttpMethod.Post, "/auth/token", null, content, form, auth: false).ConfigureAwait(false);
+        var (status, body) = await SendAsync(HttpMethod.Post, "/auth/token", null, ContentFactory, form, auth: false).ConfigureAwait(false);
 
         if (status != HttpStatusCode.OK)
         {
@@ -132,7 +139,7 @@ public class LetterboxdApi
     /// The API is idempotent: a 204 response means the entry already existed.
     /// Returns the created log entry LID, or null if the entry already existed (204).
     /// </summary>
-    public async Task<string?> MarkAsWatched(string filmId, DateTime? date, string[]? tags, bool liked = false, double rating = 0)
+    public async Task<string?> MarkAsWatched(string filmId, DateTime? date, string[]? tags, bool liked = false, double rating = 0, bool rewatch = false)
     {
         if (!IsAuthenticated)
         {
@@ -149,7 +156,7 @@ public class LetterboxdApi
             payload["diaryDetails"] = new Dictionary<string, object?>
             {
                 ["diaryDate"] = date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["rewatch"] = false,
+                ["rewatch"] = rewatch,
             };
         }
 
@@ -170,9 +177,8 @@ public class LetterboxdApi
         }
 
         var json = JsonSerializer.Serialize(payload);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var (status, body) = await SendAsync(HttpMethod.Post, "/log-entries", null, content, json, auth: true).ConfigureAwait(false);
+        var (status, body) = await SendAsync(HttpMethod.Post, "/log-entries", null, () => new StringContent(json, Encoding.UTF8, "application/json"), json, auth: true).ConfigureAwait(false);
 
         // 200 OK / 201 Created = logged (body is the new LogEntry); 204 No Content = already logged.
         // Letterboxd returns 200 in practice even though the reference spec documents 201.
@@ -284,6 +290,125 @@ public class LetterboxdApi
         return item.Value.TryGetProperty("member", out var member) && member.TryGetProperty("id", out var id)
             ? id.GetString()
             : null;
+    }
+
+    // ===== Diary (authenticated member) ==========================================================
+
+    /// <summary>
+    /// Resolve the authenticated member's own LID via GET /me. Requires a bearer token.
+    /// Returns null if the response carries no member id.
+    /// </summary>
+    public async Task<string?> GetAuthenticatedMemberId()
+    {
+        if (!IsAuthenticated)
+        {
+            throw new LetterboxdApiException("Cannot resolve the current member without an authenticated member.");
+        }
+
+        var (status, body) = await SendAsync(HttpMethod.Get, "/me", null, null, string.Empty, auth: true).ConfigureAwait(false);
+        if (status != HttpStatusCode.OK)
+        {
+            throw new LetterboxdApiException($"Letterboxd /me failed ({(int)status}). {ExtractError(body)}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+
+        // MemberAccount wraps a MemberSummary under "member"; fall back to a top-level id.
+        if (root.TryGetProperty("member", out var member) && member.TryGetProperty("id", out var memberId))
+        {
+            return memberId.GetString();
+        }
+
+        return root.TryGetProperty("id", out var id) ? id.GetString() : null;
+    }
+
+    /// <summary>
+    /// Get the authenticated member's diary entries (log entries that carry a diary date), paginated.
+    /// Each entry carries the film's TMDB id (for library matching), diary date and rating.
+    /// </summary>
+    public async Task<List<DiaryEntry>> GetDiaryEntries(string memberId)
+    {
+        var results = new List<DiaryEntry>();
+        string? cursor = null;
+
+        do
+        {
+            var query = new List<KeyValuePair<string, string>>
+            {
+                new("member", memberId),
+                new("where", "HasDiaryDate"),
+                new("perPage", "100"),
+            };
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                query.Add(new("cursor", cursor));
+            }
+
+            var (status, body) = await SendAsync(HttpMethod.Get, "/log-entries", query, null, string.Empty, auth: true).ConfigureAwait(false);
+            if (status != HttpStatusCode.OK)
+            {
+                throw new LetterboxdApiException($"Letterboxd diary read failed ({(int)status}) for member {memberId}. {ExtractError(body)}");
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("items", out var items))
+            {
+                foreach (var item in items.EnumerateArray())
+                {
+                    var entry = ParseDiaryEntry(item);
+                    if (entry != null)
+                    {
+                        results.Add(entry);
+                    }
+                }
+            }
+
+            cursor = root.TryGetProperty("next", out var next) && next.ValueKind == JsonValueKind.String ? next.GetString() : null;
+
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                await Task.Delay(500 + Random.Shared.Next(500)).ConfigureAwait(false);
+            }
+        }
+        while (!string.IsNullOrEmpty(cursor));
+
+        return results;
+    }
+
+    private static DiaryEntry? ParseDiaryEntry(JsonElement logEntry)
+    {
+        if (!logEntry.TryGetProperty("film", out var film) || film.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var summary = ParseFilmSummary(film);
+        if (string.IsNullOrEmpty(summary.TmdbId))
+        {
+            return null;
+        }
+
+        var entry = new DiaryEntry { TmdbId = summary.TmdbId, FilmSlug = summary.FilmSlug };
+
+        if (logEntry.TryGetProperty("diaryDetails", out var diary)
+            && diary.TryGetProperty("diaryDate", out var diaryDate)
+            && diaryDate.ValueKind == JsonValueKind.String
+            && DateTime.TryParse(diaryDate.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
+        {
+            // Pin the diary date to UTC midnight so it round-trips through Jellyfin's storage without
+            // shifting a day (the daily export re-logs on this same date and relies on 204 idempotency).
+            entry.DiaryDate = parsed;
+        }
+
+        if (logEntry.TryGetProperty("rating", out var rating) && rating.ValueKind == JsonValueKind.Number)
+        {
+            entry.Rating = rating.GetDouble();
+        }
+
+        return entry;
     }
 
     /// <summary>Resolve a username + list slug to a list LID via search. Best-effort. Returns null if not found.</summary>
@@ -465,28 +590,86 @@ public class LetterboxdApi
         HttpMethod method,
         string path,
         IReadOnlyList<KeyValuePair<string, string>>? query,
-        HttpContent? content,
+        Func<HttpContent?>? contentFactory,
         string bodyForSignature,
         bool auth)
     {
-        var url = BuildSignedUrl(method.Method, path, query, bodyForSignature);
+        var status = default(HttpStatusCode);
+        var body = string.Empty;
 
-        using var request = new HttpRequestMessage(method, url);
-        request.Headers.Accept.ParseAdd("application/json");
-
-        if (auth && !string.IsNullOrEmpty(_accessToken))
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            // Re-sign on every attempt: the signature embeds a fresh nonce + timestamp, and the
+            // request content is single-use, so both are rebuilt here rather than reused.
+            var url = BuildSignedUrl(method.Method, path, query, bodyForSignature);
+
+            using var request = new HttpRequestMessage(method, url);
+            request.Headers.Accept.ParseAdd("application/json");
+
+            if (auth && !string.IsNullOrEmpty(_accessToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            }
+
+            var content = contentFactory?.Invoke();
+            if (content != null)
+            {
+                request.Content = content;
+            }
+
+            using var response = await Client.SendAsync(request).ConfigureAwait(false);
+            body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            status = response.StatusCode;
+
+            if (attempt == MaxAttempts || !IsTransient(status))
+            {
+                break;
+            }
+
+            var delay = ComputeBackoff(attempt, response.Headers.RetryAfter);
+            _logger?.LogWarning(
+                "Letterboxd API returned {Status} for {Method} {Path}; retrying in {Delay}ms (attempt {Attempt}/{Max}).",
+                (int)status,
+                method.Method,
+                path,
+                (int)delay.TotalMilliseconds,
+                attempt,
+                MaxAttempts);
+
+            await Task.Delay(delay).ConfigureAwait(false);
         }
 
-        if (content != null)
+        return (status, body);
+    }
+
+    /// <summary>Transient failures worth retrying: rate limiting (429) and server-side errors (5xx).</summary>
+    private static bool IsTransient(HttpStatusCode status)
+        => status == HttpStatusCode.TooManyRequests || (int)status >= 500;
+
+    /// <summary>
+    /// Computes the wait before the next retry: honors a server <c>Retry-After</c> header when present,
+    /// otherwise uses exponential backoff (~1s, 2s, 4s) with jitter. Capped at 30s.
+    /// </summary>
+    private static TimeSpan ComputeBackoff(int attempt, RetryConditionHeaderValue? retryAfter)
+    {
+        TimeSpan Cap(TimeSpan t) => t > TimeSpan.FromSeconds(30) ? TimeSpan.FromSeconds(30) : t;
+
+        if (retryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
         {
-            request.Content = content;
+            return Cap(delta);
         }
 
-        using var response = await Client.SendAsync(request).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        return (response.StatusCode, body);
+        if (retryAfter?.Date is { } date)
+        {
+            var wait = date - DateTimeOffset.UtcNow;
+            if (wait > TimeSpan.Zero)
+            {
+                return Cap(wait);
+            }
+        }
+
+        var backoffMs = 1000 * Math.Pow(2, attempt - 1);
+        return Cap(TimeSpan.FromMilliseconds(backoffMs + Random.Shared.Next(500)));
     }
 
     /// <summary>

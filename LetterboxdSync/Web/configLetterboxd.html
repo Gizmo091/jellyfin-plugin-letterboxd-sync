@@ -37,6 +37,27 @@
                         </label>
                         <div class="fieldDescription checkboxFieldDescription"> When active it sends favorite status </div>
                     </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="sendrating" />
+                            <span>Send Rating</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription"> Sends your Jellyfin rating (0-10) as a Letterboxd star rating (0.5-5). Only applied the first time a film is logged. </div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="realtimesync" />
+                            <span>Real-time Sync</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription"> Logs a film to Letterboxd as soon as it finishes playing, instead of waiting for the daily task. </div>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="importdiary" />
+                            <span>Import Diary</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription"> Reverse sync: marks matching films as watched in Jellyfin from your Letterboxd diary (runs daily). </div>
+                    </div>
 
                     <h3>Date Filtering</h3>
                     <div class="checkboxContainer">

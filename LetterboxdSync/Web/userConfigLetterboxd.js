@@ -41,6 +41,9 @@ export default function (view, params) {
             view.querySelector('#lbxd-key').value = '';
             view.querySelector('#enable').checked = account.enable || false;
             view.querySelector('#sendfavorite').checked = account.sendFavorite || false;
+            view.querySelector('#sendrating').checked = account.sendRating;
+            view.querySelector('#realtimesync').checked = account.enableRealtimeSync;
+            view.querySelector('#importdiary').checked = account.importDiary || false;
             view.querySelector('#enabledatefilter').checked = account.enableDateFilter || false;
             view.querySelector('#datefilterdays').value = account.dateFilterDays || 7;
 
@@ -75,6 +78,9 @@ export default function (view, params) {
         configUser.PasswordLetterboxd = view.querySelector('#lbxd-key').value;
         configUser.Enable = view.querySelector('#enable').checked;
         configUser.SendFavorite = view.querySelector('#sendfavorite').checked;
+        configUser.SendRating = view.querySelector('#sendrating').checked;
+        configUser.EnableRealtimeSync = view.querySelector('#realtimesync').checked;
+        configUser.ImportDiary = view.querySelector('#importdiary').checked;
         configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
         configUser.DateFilterDays = parseInt(view.querySelector('#datefilterdays').value) || 7;
 

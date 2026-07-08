@@ -208,6 +208,16 @@ and inspect each entry's `diaryDetails.diaryDate`. Get the authenticated member 
   `GET /search?input=<username>&searchMethod=Autocomplete&include=MemberSearchItem&perPage=1`
   → `items[0].member.id`. (For the signed-in user, `GET /me` → `member.id`.)
 
+### 6.5 Diary import (reverse sync) — `GET /me` + `GET /log-entries`
+
+Used by `LetterboxdDiaryImportTask` to mirror the member's own diary back into Jellyfin:
+
+1. `GET /me` (Bearer required) → the authenticated member LID (`member.id`, falling back to a top-level `id`).
+2. `GET /log-entries?member=<memberLID>&where=HasDiaryDate&perPage=100` (paginated via `cursor`/`next`).
+   Each `LogEntry` item carries `film` (a `FilmSummary` whose `links` hold the TMDB id),
+   `diaryDetails.diaryDate` (`YYYY-MM-DD`), and an optional `rating` (0.5-5.0). Match the TMDB id
+   against the library and mark the film watched with the diary date.
+
 ## 7. Mapping — old scraping method → new API call
 
 | `LetterboxdApi` method (old, scraping)            | New API call                                                            |

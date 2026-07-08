@@ -7,7 +7,6 @@ using Jellyfin.Data.Enums;
 using LetterboxdSync.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -15,8 +14,6 @@ namespace LetterboxdSync;
 
 public class LetterboxdSyncTask : IScheduledTask
 {
-    private static readonly object ConfigSaveLock = new();
-
     private readonly ILogger _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -83,13 +80,12 @@ public class LetterboxdSyncTask : IScheduledTask
             var api = new LetterboxdApi(_logger);
             try
             {
-                await AuthenticateAccount(api, account).ConfigureAwait(false);
+                await LetterboxdAuthenticator.AuthenticateAsync(api, account, _logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
-                    @"{Message}
-                    User: {Username} ({UserId})",
+                    "{Message} User: {Username} ({UserId})",
                     ex.Message,
                     user.Username,
                     user.Id.ToString("N"));
@@ -99,79 +95,33 @@ public class LetterboxdSyncTask : IScheduledTask
 
             foreach (var movie in lstMoviesPlayed)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var userItemData = _userDataManager.GetUserData(user, movie);
                 if (userItemData is null)
                 {
                     continue;
                 }
 
-                string? title = movie.OriginalTitle;
-                bool favorite = movie.IsFavoriteOrLiked(user, userItemData) && account.SendFavorite;
-                DateTime? viewingDate = userItemData.LastPlayedDate;
-                string[] tags = new List<string>() { string.Empty }.ToArray();
-
-                if (int.TryParse(movie.GetProviderId(MetadataProvider.Tmdb), out int tmdbid))
+                try
                 {
-                    try
+                    var logged = await LetterboxdMovieSync.LogMovieAsync(api, movie, user, userItemData, account, _logger).ConfigureAwait(false);
+
+                    // Only pause between films we actually hit the API for, to stay well-mannered.
+                    if (logged)
                     {
-                        var filmResult = await api.SearchFilmByTmdbId(tmdbid).ConfigureAwait(false);
-
-                        if (filmResult == null)
-                        {
-                            _logger.LogWarning(
-                                @"Film not found on Letterboxd
-                                User: {Username} ({UserId})
-                                Movie: {Movie} ({TmdbId})",
-                                user.Username,
-                                user.Id.ToString("N"),
-                                title,
-                                tmdbid);
-                            continue;
-                        }
-
-                        // Letterboxd's diary needs a date; fall back to today if Jellyfin has none.
-                        viewingDate = (viewingDate ?? DateTime.Now).Date;
-
-                        // MarkAsWatched is idempotent server-side (204 = already logged), so no pre-check is needed.
-                        await api.MarkAsWatched(filmResult.FilmId, viewingDate, tags, favorite).ConfigureAwait(false);
-                        _logger.LogInformation(
-                            @"Film logged in Letterboxd
-                            User: {Username} ({UserId})
-                            Movie: {Movie} ({TmdbId})
-                            Date: {ViewingDate}",
-                            user.Username,
-                            user.Id.ToString("N"),
-                            title,
-                            tmdbid,
-                            viewingDate);
-
-                        // Small delay between films to stay well-mannered.
                         await Task.Delay(1000 + Random.Shared.Next(1000), cancellationToken).ConfigureAwait(false);
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            @"{Message}
-                            User: {Username} ({UserId})
-                            Movie: {Movie} ({TmdbId})
-                            StackTrace: {StackTrace}",
-                            ex.Message,
-                            user.Username,
-                            user.Id.ToString("N"),
-                            title,
-                            tmdbid,
-                            ex.StackTrace);
-                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.LogWarning(
-                        @"Film does not have TmdbId
-                        User: {Username} ({UserId})
-                        Movie: {Movie}",
+                    _logger.LogError(
+                        "{Message} User: {Username} ({UserId}) Movie: {Movie} StackTrace: {StackTrace}",
+                        ex.Message,
                         user.Username,
                         user.Id.ToString("N"),
-                        title);
+                        movie.OriginalTitle ?? movie.Name,
+                        ex.StackTrace);
                 }
             }
         }
@@ -187,49 +137,4 @@ public class LetterboxdSyncTask : IScheduledTask
             IntervalTicks = TimeSpan.FromDays(1).Ticks
         }
     };
-
-    /// <summary>
-    /// Authenticates <paramref name="api"/> for the given account, preferring a stored refresh token
-    /// and falling back to username/password. A newly obtained or rotated refresh token is persisted
-    /// and the plaintext password is dropped.
-    /// </summary>
-    private async Task AuthenticateAccount(LetterboxdApi api, Account account)
-    {
-        var previousRefreshToken = account.RefreshToken;
-        var authenticated = false;
-
-        if (!string.IsNullOrWhiteSpace(account.RefreshToken))
-        {
-            try
-            {
-                await api.AuthenticateWithRefreshToken(account.RefreshToken!).ConfigureAwait(false);
-                authenticated = true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Letterboxd refresh token rejected; falling back to password login if available.");
-            }
-        }
-
-        if (!authenticated)
-        {
-            if (string.IsNullOrWhiteSpace(account.UserLetterboxd) || string.IsNullOrWhiteSpace(account.PasswordLetterboxd))
-            {
-                throw new LetterboxdApiException("No valid Letterboxd credentials (refresh token expired and no password to re-authenticate).");
-            }
-
-            await api.AuthenticateWithPassword(account.UserLetterboxd!, account.PasswordLetterboxd!).ConfigureAwait(false);
-        }
-
-        // Persist a newly obtained / rotated refresh token, and drop the plaintext password.
-        if (!string.IsNullOrEmpty(api.RefreshToken) && api.RefreshToken != previousRefreshToken)
-        {
-            lock (ConfigSaveLock)
-            {
-                account.RefreshToken = api.RefreshToken;
-                account.PasswordLetterboxd = null;
-                Plugin.Instance!.SaveConfiguration();
-            }
-        }
-    }
 }

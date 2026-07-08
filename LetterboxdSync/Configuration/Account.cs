@@ -25,6 +25,27 @@ public class Account
 
     public bool SendFavorite { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the Jellyfin personal rating (0-10) is sent to
+    /// Letterboxd as a star rating (0.5-5.0). Defaults to true. Ratings are only applied when a film
+    /// is first logged (Letterboxd's log-entry endpoint is idempotent), so this never overwrites an
+    /// existing Letterboxd rating.
+    /// </summary>
+    public bool SendRating { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a film is logged to Letterboxd immediately when the
+    /// user finishes watching it, instead of waiting for the daily task. Defaults to true.
+    /// </summary>
+    public bool EnableRealtimeSync { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the member's Letterboxd diary is imported back into
+    /// Jellyfin (matching films are marked watched with their diary date). Defaults to false because
+    /// it modifies Jellyfin's own watched state.
+    /// </summary>
+    public bool ImportDiary { get; set; }
+
     public bool EnableDateFilter { get; set; }
 
     public int DateFilterDays { get; set; } = 7;

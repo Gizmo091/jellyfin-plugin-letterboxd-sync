@@ -76,6 +76,10 @@ export default function (view, params) {
         view.querySelector('#lbxd-key').value = '';
         view.querySelector('#enable').checked = account.Enable || false;
         view.querySelector('#sendfavorite').checked = account.SendFavorite || false;
+        // SendRating / EnableRealtimeSync default to true when the account has never set them.
+        view.querySelector('#sendrating').checked = account.SendRating !== false;
+        view.querySelector('#realtimesync').checked = account.EnableRealtimeSync !== false;
+        view.querySelector('#importdiary').checked = account.ImportDiary || false;
         view.querySelector('#enabledatefilter').checked = account.EnableDateFilter || false;
         view.querySelector('#datefilterdays').value = account.DateFilterDays || 7;
         loadWatchlistForUser(account);
@@ -137,6 +141,9 @@ export default function (view, params) {
             configUser.UserLetterboxd = view.querySelector('#lbxd-account').value;
             configUser.Enable = view.querySelector('#enable').checked;
             configUser.SendFavorite = view.querySelector('#sendfavorite').checked;
+            configUser.SendRating = view.querySelector('#sendrating').checked;
+            configUser.EnableRealtimeSync = view.querySelector('#realtimesync').checked;
+            configUser.ImportDiary = view.querySelector('#importdiary').checked;
             configUser.EnableDateFilter = view.querySelector('#enabledatefilter').checked;
             configUser.DateFilterDays = parseInt(view.querySelector('#datefilterdays').value) || 7;
             configUser.WatchlistUsernames = getWatchlistUsernames();
