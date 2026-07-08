@@ -23,6 +23,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/master/images/letterboxd-sync.png",
     "versions": [
       {
+        "version": "2.1.0.0",
+        "changelog": "- chore: ignore .env (709e67d)\n- feat: Seerr auto-request for watchlist films missing from the library (a83fc8e)\n- feat: real-time sync, ratings, rewatch, backoff and diary import (32ccf1a)\n- chore(release): v2.0.4 [skip ci] (c9e7afb)",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/releases/download/v2.1.0/jellyfin-plugin-letterboxd-sync-v2.1.0.zip",
+        "checksum": "50e55ea913d6095ea871fd28e17fe8e7",
+        "timestamp": "2026-07-08T15:01:38Z"
+      },
+      {
         "version": "2.0.4.0",
         "changelog": "- docs: fix LETTERBOXD_API.md rendering (remove a stray NUL byte) (97c2d22)\n- docs(ui): clarify that \"Letterboxd Secret\" is your password (c059e60)\n- fix: keep read-only config collections populated on save (622db62)\n- chore(release): v2.0.3 [skip ci] (7a75ca1)",
         "targetAbi": "10.11.9.0",
