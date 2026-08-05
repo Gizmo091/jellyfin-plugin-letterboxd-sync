@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Registers the index.html transformation with the File Transformation plugin once the server has

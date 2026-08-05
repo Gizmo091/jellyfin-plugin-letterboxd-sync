@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
-using LetterboxdSync;
+using Jellyfin.Plugin.LetterboxdSync;
 using Xunit;
 
-namespace LetterboxdSync.Tests
+namespace Jellyfin.Plugin.LetterboxdSync.Tests
 {
     public class LetterboxdApiTests
     {

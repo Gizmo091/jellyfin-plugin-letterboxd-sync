@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
-using LetterboxdSync;
+using Jellyfin.Plugin.LetterboxdSync;
 using Xunit;
 
-namespace LetterboxdSync.Tests
+namespace Jellyfin.Plugin.LetterboxdSync.Tests
 {
     /// <summary>
     /// Integration tests for the authenticated (write) path. They are opt-in and only run when a

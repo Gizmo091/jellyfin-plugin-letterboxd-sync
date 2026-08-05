@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using MediaBrowser.Model.Plugins;
 
-namespace LetterboxdSync.Configuration;
+namespace Jellyfin.Plugin.LetterboxdSync.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {

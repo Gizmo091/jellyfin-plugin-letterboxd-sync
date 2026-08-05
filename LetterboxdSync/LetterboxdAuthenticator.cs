@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
-using LetterboxdSync.Configuration;
+using Jellyfin.Plugin.LetterboxdSync.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Shared authentication for an <see cref="Account"/>: prefers the stored refresh token and falls

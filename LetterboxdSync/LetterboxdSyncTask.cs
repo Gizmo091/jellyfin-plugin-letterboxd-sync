@@ -4,13 +4,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
-using LetterboxdSync.Configuration;
+using Jellyfin.Plugin.LetterboxdSync.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 public class LetterboxdSyncTask : IScheduledTask
 {

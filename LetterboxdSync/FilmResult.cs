@@ -1,4 +1,4 @@
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Result of resolving a film on Letterboxd.

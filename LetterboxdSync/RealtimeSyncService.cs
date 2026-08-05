@@ -8,7 +8,7 @@ using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Logs a film to Letterboxd the moment a user finishes watching it (or manually marks it played),

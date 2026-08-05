@@ -1,4 +1,4 @@
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Shape of the payload the File Transformation plugin deserializes into the transformation callback.

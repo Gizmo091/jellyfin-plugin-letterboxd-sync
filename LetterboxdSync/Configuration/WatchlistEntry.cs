@@ -1,4 +1,4 @@
-namespace LetterboxdSync.Configuration;
+namespace Jellyfin.Plugin.LetterboxdSync.Configuration;
 
 /// <summary>
 /// A single watchlist/list to mirror into a Jellyfin playlist, plus whether films missing from the

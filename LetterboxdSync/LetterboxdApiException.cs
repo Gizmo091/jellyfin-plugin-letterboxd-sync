@@ -1,6 +1,6 @@
 using System;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Error raised for a failed Letterboxd API operation.

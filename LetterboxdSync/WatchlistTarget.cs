@@ -1,4 +1,4 @@
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Resolved target for a watchlist/list input.

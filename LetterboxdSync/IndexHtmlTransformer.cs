@@ -1,6 +1,6 @@
 using System;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Callback invoked by the File Transformation plugin to inject the Letterboxd client script into

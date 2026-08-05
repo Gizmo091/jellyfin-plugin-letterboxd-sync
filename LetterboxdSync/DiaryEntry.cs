@@ -1,6 +1,6 @@
 using System;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// A single entry from a member's Letterboxd diary, reduced to what the plugin needs to mirror the

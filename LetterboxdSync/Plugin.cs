@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using LetterboxdSync.Configuration;
+using Jellyfin.Plugin.LetterboxdSync.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// The main plugin.

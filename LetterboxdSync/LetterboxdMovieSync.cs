@@ -1,12 +1,12 @@
 using System;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
-using LetterboxdSync.Configuration;
+using Jellyfin.Plugin.LetterboxdSync.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
-namespace LetterboxdSync;
+namespace Jellyfin.Plugin.LetterboxdSync;
 
 /// <summary>
 /// Shared logic for logging a single played Jellyfin movie to Letterboxd. Used by both the daily

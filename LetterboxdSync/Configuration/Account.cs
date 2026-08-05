@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-namespace LetterboxdSync.Configuration;
+namespace Jellyfin.Plugin.LetterboxdSync.Configuration;
 
 public class Account
 {

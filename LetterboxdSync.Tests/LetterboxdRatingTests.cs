@@ -1,7 +1,7 @@
-using LetterboxdSync;
+using Jellyfin.Plugin.LetterboxdSync;
 using Xunit;
 
-namespace LetterboxdSync.Tests
+namespace Jellyfin.Plugin.LetterboxdSync.Tests
 {
     /// <summary>
     /// Unit tests for the Jellyfin (0-10) → Letterboxd (0.5-5.0) rating conversion. Pure logic, no network.

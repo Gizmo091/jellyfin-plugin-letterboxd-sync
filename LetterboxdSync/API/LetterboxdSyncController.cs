@@ -4,12 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using LetterboxdSync.Configuration;
+using Jellyfin.Plugin.LetterboxdSync.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LetterboxdSync.API;
+namespace Jellyfin.Plugin.LetterboxdSync.API;
 
 [ApiController]
 [Authorize]
