@@ -27,6 +27,7 @@
             saving: 'Saving...',
             settingsSaved: 'Settings saved.',
             errorSaving: 'Error saving settings.',
+            errorLoading: 'Could not load your settings.',
             authFailed: 'Authentication failed.'
         },
         fr: {
@@ -50,6 +51,7 @@
             saving: 'Enregistrement...',
             settingsSaved: 'Param\u00e8tres enregistr\u00e9s.',
             errorSaving: 'Erreur lors de l\'enregistrement.',
+            errorLoading: 'Impossible de charger vos param\u00e8tres.',
             authFailed: '\u00c9chec de l\'authentification.'
         },
         de: {
@@ -312,6 +314,34 @@
     var lang = (document.documentElement.lang || navigator.language || 'en').substring(0, 2).toLowerCase();
     var t = STRINGS[lang] || STRINGS.en;
 
+    // ===== Error reporting =====
+    // ApiClient rejects with the raw fetch Response, so dig out the { Message } payload the plugin
+    // controller returns. Anything else (a TypeError from a missing ApiClient method, for instance)
+    // is reported as-is: a failure must never end up silently swallowed by an unhandled rejection.
+    function describeError(err) {
+        if (!err) {
+            return Promise.resolve('Unknown error');
+        }
+        if (typeof err.json === 'function') {
+            return err.json().then(function (body) {
+                return [err.statusText, body && body.Message].filter(Boolean).join(' - ')
+                    || ('HTTP ' + err.status);
+            }).catch(function () {
+                return err.statusText || ('HTTP ' + err.status);
+            });
+        }
+        return Promise.resolve(err.message || String(err));
+    }
+
+    function reportError(prefix, err) {
+        console.error('[LetterboxdSync]', err);
+        return describeError(err).then(function (message) {
+            var text = prefix ? prefix + ' ' + message : message;
+            // Dashboard.alert reads options.message; text is passed too for older web clients.
+            Dashboard.alert({ title: 'Letterboxd Sync', message: text, text: text });
+        });
+    }
+
     // Store initial credentials to detect changes
 
     // ===== Sidebar injection =====
@@ -557,6 +587,12 @@
             for (var i = 0; i < entries.length; i++) {
                 addWatchlistEntry(container, entries[i].input, entries[i].autoRequest);
             }
+        }).catch(function (err) {
+            var status = view.querySelector('#lbxd-link-status');
+            if (status) {
+                status.textContent = t.errorLoading || 'Could not load your settings.';
+            }
+            return reportError(t.errorLoading || 'Could not load your settings.', err);
         });
     }
 
@@ -642,20 +678,14 @@
             // an error if the credentials are invalid, so a separate auth step is no longer needed.
             var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
             ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
-                onDone();
                 Dashboard.alert(t.settingsSaved);
                 closeDialog();
-            }).catch(function (response) {
+            }).catch(function (err) {
+                return reportError(t.errorSaving, err);
+            }).then(function () {
+                // Deliberately not .finally(): this also has to run on the older browsers some
+                // Jellyfin clients ship with. Either way the button is always restored.
                 onDone();
-                if (response && response.json) {
-                    response.json().then(function (res) {
-                        Dashboard.alert((t.authFailed || 'Error') + ' ' + (res.Message || ''));
-                    }).catch(function () {
-                        Dashboard.alert(t.errorSaving);
-                    });
-                } else {
-                    Dashboard.alert(t.errorSaving);
-                }
             });
         });
     }

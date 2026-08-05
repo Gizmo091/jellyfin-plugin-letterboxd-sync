@@ -6,6 +6,41 @@ export default function (view, params) {
     // Refresh token of the account currently loaded in the form (never shown in an input).
     var currentRefreshToken = null;
 
+    // ApiClient rejects with the raw fetch Response, so dig out the { Message } payload the plugin
+    // controller returns. Anything else (a TypeError from a missing ApiClient method, for instance)
+    // is reported as-is: a failure must never end up silently swallowed by an unhandled rejection.
+    function describeError(err) {
+        if (!err) {
+            return Promise.resolve('Unknown error');
+        }
+        if (typeof err.json === 'function') {
+            return err.json().then(function (body) {
+                return [err.statusText, body && body.Message].filter(Boolean).join(' - ')
+                    || ('HTTP ' + err.status);
+            }).catch(function () {
+                return err.statusText || ('HTTP ' + err.status);
+            });
+        }
+        return Promise.resolve(err.message || String(err));
+    }
+
+    function reportError(err) {
+        console.error('[LetterboxdSync]', err);
+        return describeError(err).then(function (message) {
+            // Dashboard.alert reads options.message; text is passed too for older web clients.
+            Dashboard.alert({ title: 'Letterboxd Sync', message: message, text: message });
+        });
+    }
+
+    // ApiClient.ajax resolves with a raw Response unless dataType is set; older/newer clients differ.
+    function readJson(response) {
+        if (!response || typeof response.json !== 'function') {
+            return response;
+        }
+        // A body-less success is not a failure, so an unparseable body just yields no result.
+        return response.json().catch(function () { return null; });
+    }
+
     function addWatchlistEntry(container, value, autoRequest) {
         var row = document.createElement('div');
         row.className = 'inputContainer';
@@ -114,7 +149,7 @@ export default function (view, params) {
     }
 
     function findAccount(config, userId) {
-        var matches = config.Accounts.filter(function (item) {
+        var matches = (config.Accounts || []).filter(function (item) {
             return item.UserJellyfin == userId;
         });
         return matches.length > 0 ? matches[0] : null;
@@ -133,12 +168,12 @@ export default function (view, params) {
             }
 
             const userSelectedId = selectUsers.value;
-            ApiClient.getPluginConfiguration(pluginId).then(config => {
+            return ApiClient.getPluginConfiguration(pluginId).then(config => {
                 view.querySelector('#seerr-url').value = config.SeerrUrl || '';
                 view.querySelector('#seerr-apikey').value = config.SeerrApiKey || '';
                 populate(findAccount(config, userSelectedId));
             });
-        });
+        }).catch(reportError);
     });
 
     view.querySelector('#addWatchlistBtn').addEventListener('click', function () {
@@ -150,7 +185,7 @@ export default function (view, params) {
         const userSelectedId = e.target.value;
         ApiClient.getPluginConfiguration(pluginId).then(config => {
             populate(findAccount(config, userSelectedId));
-        });
+        }).catch(reportError);
     });
 
     view.querySelector('#LetterboxdSyncConfigForm').addEventListener('submit', function (e) {
@@ -161,7 +196,7 @@ export default function (view, params) {
         const password = view.querySelector('#lbxd-key').value.trim();
 
         ApiClient.getPluginConfiguration(pluginId).then(config => {
-            let accountsUpdate = config.Accounts.filter(function (account) {
+            let accountsUpdate = (config.Accounts || []).filter(function (account) {
                 return account.UserJellyfin != userSelectedId;
             });
 
@@ -192,7 +227,7 @@ export default function (view, params) {
                 config.SeerrApiKey = view.querySelector('#seerr-apikey').value.trim();
                 accountsUpdate.push(configUser);
                 config.Accounts = accountsUpdate;
-                ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                return ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                     currentRefreshToken = configUser.RefreshToken || null;
                     setLinkStatus(configUser);
                     Dashboard.processPluginConfigurationUpdateResult(result);
@@ -201,28 +236,24 @@ export default function (view, params) {
 
             // When disabled, or when there is nothing to (re)validate, just save.
             if (!configUser.Enable || (!password && !configUser.RefreshToken)) {
-                Dashboard.hideLoadingMsg();
-                persist();
-                return;
+                return persist();
             }
 
             const url = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/Authenticate');
             const data = JSON.stringify(configUser);
 
-            ApiClient.ajax({ type: 'POST', url, data, contentType: 'application/json' }).then(function (response) {
-                Dashboard.hideLoadingMsg();
-                response.json().then(function (res) {
+            return ApiClient.ajax({ type: 'POST', url, data, contentType: 'application/json' })
+                .then(readJson)
+                .then(function (res) {
                     if (res && res.refreshToken) {
                         configUser.RefreshToken = res.refreshToken;
                     }
-                    persist();
+                    return persist();
                 });
-            }).catch(function (response) {
-                Dashboard.hideLoadingMsg();
-                response.json().then(res => {
-                    Dashboard.processErrorResponse({ statusText: `${response.statusText} - ${res.Message}` });
-                });
-            });
+        }).catch(reportError).then(function () {
+            // Deliberately not .finally(): this also has to run on the older browsers some Jellyfin
+            // clients ship with. Either way the spinner is always torn down.
+            Dashboard.hideLoadingMsg();
         });
     });
 }

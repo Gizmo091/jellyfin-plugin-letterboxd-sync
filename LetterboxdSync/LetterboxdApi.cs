@@ -29,6 +29,11 @@ public class LetterboxdApi
     // Attempts per call before giving up (1 initial try + retries), used only for transient 429/5xx.
     private const int MaxAttempts = 4;
 
+    // Per-request ceiling. HttpClient defaults to 100s, which an interactive caller (the config page
+    // saving credentials) cannot distinguish from a hang; 30s bounds the worst case to roughly two
+    // minutes even when all four attempts time out.
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
     private static readonly byte[] ApiSecret = Encoding.ASCII.GetBytes("c60ce045d25bc90cb56026a8dd621eebeef995cbecc51951192da75348c977cd");
     private static readonly HttpClient Client = CreateClient();
 
@@ -56,7 +61,7 @@ public class LetterboxdApi
             CheckCertificateRevocationList = true,
         };
 
-        var client = new HttpClient(handler);
+        var client = new HttpClient(handler) { Timeout = RequestTimeout };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Letterboxd-JellyfinSync/2.0");
         return client;
     }
@@ -518,7 +523,7 @@ public class LetterboxdApi
         if (uri.Host.Equals("boxd.it", StringComparison.OrdinalIgnoreCase))
         {
             using var redirectHandler = new HttpClientHandler { AllowAutoRedirect = false, CheckCertificateRevocationList = true };
-            using var httpClient = new HttpClient(redirectHandler);
+            using var httpClient = new HttpClient(redirectHandler) { Timeout = RequestTimeout };
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Letterboxd-JellyfinSync/2.0");
             using var response = await httpClient.GetAsync(uri).ConfigureAwait(false);
             var location = response.Headers.Location;

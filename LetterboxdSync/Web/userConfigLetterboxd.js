@@ -1,6 +1,32 @@
 
 export default function (view, params) {
 
+    // ApiClient rejects with the raw fetch Response, so dig out the { Message } payload the plugin
+    // controller returns. Anything else (a TypeError from a missing ApiClient method, for instance)
+    // is reported as-is: a failure must never end up silently swallowed by an unhandled rejection.
+    function describeError(err) {
+        if (!err) {
+            return Promise.resolve('Unknown error');
+        }
+        if (typeof err.json === 'function') {
+            return err.json().then(function (body) {
+                return [err.statusText, body && body.Message].filter(Boolean).join(' - ')
+                    || ('HTTP ' + err.status);
+            }).catch(function () {
+                return err.statusText || ('HTTP ' + err.status);
+            });
+        }
+        return Promise.resolve(err.message || String(err));
+    }
+
+    function reportError(err) {
+        console.error('[LetterboxdSync]', err);
+        return describeError(err).then(function (message) {
+            // Dashboard.alert reads options.message; text is passed too for older web clients.
+            Dashboard.alert({ title: 'Letterboxd Sync', message: message, text: message });
+        });
+    }
+
     function addWatchlistEntry(container, value, autoRequest) {
         var row = document.createElement('div');
         row.className = 'inputContainer';
@@ -95,7 +121,7 @@ export default function (view, params) {
                     ? ''
                     : 'Auto-request has no effect until an administrator configures Seerr in the plugin settings.';
             }
-        });
+        }).catch(reportError);
     });
 
     view.querySelector('#addWatchlistBtn').addEventListener('click', function () {
@@ -128,19 +154,11 @@ export default function (view, params) {
         // error if the credentials are invalid, so a separate auth step is no longer needed.
         var saveUrl = ApiClient.getUrl('Jellyfin.Plugin.LetterboxdSync/UserConfig');
         ApiClient.ajax({ type: 'POST', url: saveUrl, data: data, contentType: 'application/json' }).then(function () {
-            Dashboard.hideLoadingMsg();
             Dashboard.alert('Settings saved.');
-        }).catch(function (response) {
+        }).catch(reportError).then(function () {
+            // Deliberately not .finally(): this also has to run on the older browsers some Jellyfin
+            // clients ship with. Either way the spinner is always torn down.
             Dashboard.hideLoadingMsg();
-            if (response && response.json) {
-                response.json().then(function (res) {
-                    Dashboard.processErrorResponse({ statusText: response.statusText + ' - ' + (res.Message || '') });
-                }).catch(function () {
-                    Dashboard.alert('Error saving settings.');
-                });
-            } else {
-                Dashboard.alert('Error saving settings.');
-            }
         });
     });
 }
