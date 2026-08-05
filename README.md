@@ -71,7 +71,32 @@ https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/maste
     <img src="/images/config-page.png" width="70%">
 </p>
 
-## Upgrading from 1.x
+## Troubleshooting
+
+### The settings page spins forever, or returns a `500`
+
+If you also run **[Jellyscribe](https://github.com/builtbyproxy/Jellyscribe)**, upgrade to **v2.2.0 or later**.
+
+Jellyscribe grew out of the same original codebase as this plugin and declares its types in the same `LetterboxdSync` namespace. Jellyfin caches XML serializers in one dictionary shared by every loaded plugin, keyed by the type's full name — so whichever plugin loaded first had its serializer handed to the other one, and `GET /Plugins/{guid}/Configuration` failed with:
+
+```
+System.InvalidCastException: [A]LetterboxdSync.Configuration.PluginConfiguration
+cannot be cast to [B]LetterboxdSync.Configuration.PluginConfiguration
+```
+
+Since v2.2.0 this plugin lives under `Jellyfin.Plugin.LetterboxdSync`, so the two can be enabled side by side. Details in [#7](https://github.com/Gizmo091/jellyfin-plugin-letterboxd-sync/issues/7).
+
+Before v2.1.1 this surfaced as an endless loading spinner with no error at all, which is why upgrading is worth it even if you don't run Jellyscribe.
+
+## Upgrading
+
+### To 2.2.0
+
+- Your accounts and settings carry over — the update itself does not touch them.
+- **If you were hit by the Jellyscribe conflict above, you may have to sign in to Letterboxd once more.** That is not caused by the update: the failed save truncated `LetterboxdSync.xml` while the conflict was active, which can wipe the stored token. Re-enter the account password in the plugin settings and it re-links.
+- The plugin's three scheduled tasks get new internal ids, because Jellyfin derives them from the type name. **If you customised when they run, set those schedules again** under `Scheduled Tasks`; the sync itself is unaffected.
+
+### From 1.x
 
 - **No more cookies.** The `Raw Cookies` / Cloudflare workaround is gone — you can clear that field. Just make sure you sign in with your **username** (not email).
 - Existing configurations keep working: on the next sync the plugin swaps your stored password for a refresh token automatically.
