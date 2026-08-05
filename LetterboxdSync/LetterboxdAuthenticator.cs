@@ -21,6 +21,7 @@ internal static class LetterboxdAuthenticator
     public static async Task AuthenticateAsync(LetterboxdApi api, Account account, ILogger logger)
     {
         var previousRefreshToken = account.RefreshToken;
+        var hadRefreshToken = !string.IsNullOrWhiteSpace(account.RefreshToken);
         var authenticated = false;
 
         if (!string.IsNullOrWhiteSpace(account.RefreshToken))
@@ -40,7 +41,11 @@ internal static class LetterboxdAuthenticator
         {
             if (string.IsNullOrWhiteSpace(account.UserLetterboxd) || string.IsNullOrWhiteSpace(account.PasswordLetterboxd))
             {
-                throw new LetterboxdApiException("No valid Letterboxd credentials (refresh token expired and no password to re-authenticate).");
+                // Distinguish "the token was refused" from "there was never a token": the second
+                // case points at a configuration that was lost, not at an expiry.
+                throw new LetterboxdApiException(hadRefreshToken
+                    ? "Letterboxd rejected the stored token and no password is available to re-authenticate. Re-enter the account password in the plugin settings."
+                    : "No Letterboxd token is stored for this account. Enter the account credentials in the plugin settings to link it.");
             }
 
             await api.AuthenticateWithPassword(account.UserLetterboxd!, account.PasswordLetterboxd!).ConfigureAwait(false);
