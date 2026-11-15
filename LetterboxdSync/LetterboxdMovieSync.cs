@@ -32,15 +32,15 @@ internal static class LetterboxdMovieSync
 
     /// <summary>
     /// Logs <paramref name="movie"/> to Letterboxd for <paramref name="account"/> using the supplied
-    /// (already authenticated) <paramref name="api"/>. Returns true when a log request was sent (the
-    /// entry may already have existed server-side), false when the film was skipped (no TMDB id, or
-    /// not found on Letterboxd).
+    /// (already authenticated) <paramref name="api"/> and member id. Returns true only when a new log
+    /// request is sent; an existing diary entry for the same film and date is skipped.
     /// </summary>
     public static async Task<bool> LogMovieAsync(
         LetterboxdApi api,
         BaseItem movie,
         User user,
         UserItemData userData,
+        string memberId,
         Account account,
         ILogger logger)
     {
@@ -75,7 +75,18 @@ internal static class LetterboxdMovieSync
         // Letterboxd's diary needs a date; fall back to today if Jellyfin has none.
         var viewingDate = (userData.LastPlayedDate ?? DateTime.Now).Date;
 
-        // MarkAsWatched is idempotent server-side (204 = already logged), so no pre-check is needed.
+        if (await api.HasDiaryEntry(memberId, filmResult.FilmId, viewingDate).ConfigureAwait(false))
+        {
+            logger.LogInformation(
+                "Film already has a Letterboxd diary entry for {ViewingDate}; skipping. User: {Username} ({UserId}) Movie: {Movie} ({TmdbId})",
+                viewingDate,
+                user.Username,
+                user.Id.ToString("N"),
+                title,
+                tmdbId);
+            return false;
+        }
+
         await api.MarkAsWatched(filmResult.FilmId, viewingDate, tags: null, liked: favorite, rating: rating, rewatch: rewatch).ConfigureAwait(false);
 
         logger.LogInformation(

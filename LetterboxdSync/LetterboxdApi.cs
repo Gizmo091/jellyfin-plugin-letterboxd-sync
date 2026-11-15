@@ -38,13 +38,20 @@ public class LetterboxdApi
     private static readonly HttpClient Client = CreateClient();
 
     private readonly ILogger? _logger;
+    private readonly HttpClient _client;
 
     private string? _accessToken;
     private string? _refreshToken;
 
     public LetterboxdApi(ILogger? logger = null)
+        : this(logger, null)
+    {
+    }
+
+    internal LetterboxdApi(ILogger? logger, HttpMessageHandler? handler)
     {
         _logger = logger;
+        _client = handler == null ? Client : new HttpClient(handler) { Timeout = RequestTimeout };
     }
 
     /// <summary>Gets the current refresh token (populated after authentication). Persist it to avoid re-login.</summary>
@@ -141,8 +148,8 @@ public class LetterboxdApi
 
     /// <summary>
     /// Create a diary entry (mark a film as watched) via POST /log-entries.
-    /// The API is idempotent: a 204 response means the entry already existed.
-    /// Returns the created log entry LID, or null if the entry already existed (204).
+    /// Returns the created log entry LID when available. Callers must check the diary first;
+    /// repeated requests can create additional entries.
     /// </summary>
     public async Task<string?> MarkAsWatched(string filmId, DateTime? date, string[]? tags, bool liked = false, double rating = 0, bool rewatch = false)
     {
@@ -185,7 +192,6 @@ public class LetterboxdApi
 
         var (status, body) = await SendAsync(HttpMethod.Post, "/log-entries", null, () => new StringContent(json, Encoding.UTF8, "application/json"), json, auth: true).ConfigureAwait(false);
 
-        // 200 OK / 201 Created = logged (body is the new LogEntry); 204 No Content = already logged.
         // Letterboxd returns 200 in practice even though the reference spec documents 201.
         if (status is HttpStatusCode.OK or HttpStatusCode.Created)
         {
@@ -330,9 +336,14 @@ public class LetterboxdApi
 
     /// <summary>
     /// Get the authenticated member's diary entries (log entries that carry a diary date), paginated.
-    /// Each entry carries the film's TMDB id (for library matching), diary date and rating.
+    /// Each entry carries the Letterboxd film LID, optional TMDB id, diary date and rating.
     /// </summary>
-    public async Task<List<DiaryEntry>> GetDiaryEntries(string memberId)
+    public Task<List<DiaryEntry>> GetDiaryEntries(string memberId) => GetDiaryEntries(memberId, null);
+
+    /// <summary>
+    /// Get diary entries for a member, optionally filtered to one Letterboxd film LID.
+    /// </summary>
+    internal async Task<List<DiaryEntry>> GetDiaryEntries(string memberId, string? filmId)
     {
         var results = new List<DiaryEntry>();
         string? cursor = null;
@@ -345,6 +356,11 @@ public class LetterboxdApi
                 new("where", "HasDiaryDate"),
                 new("perPage", "100"),
             };
+            if (!string.IsNullOrEmpty(filmId))
+            {
+                query.Add(new("film", filmId));
+            }
+
             if (!string.IsNullOrEmpty(cursor))
             {
                 query.Add(new("cursor", cursor));
@@ -383,6 +399,18 @@ public class LetterboxdApi
         return results;
     }
 
+    /// <summary>
+    /// Check whether the member already has a diary entry for this film and calendar date.
+    /// Letterboxd's log-entry creation endpoint does not enforce uniqueness.
+    /// </summary>
+    public async Task<bool> HasDiaryEntry(string memberId, string filmId, DateTime date)
+    {
+        var entries = await GetDiaryEntries(memberId, filmId).ConfigureAwait(false);
+        return entries.Any(entry =>
+            string.Equals(entry.FilmId, filmId, StringComparison.Ordinal)
+            && entry.DiaryDate?.Date == date.Date);
+    }
+
     private static DiaryEntry? ParseDiaryEntry(JsonElement logEntry)
     {
         if (!logEntry.TryGetProperty("film", out var film) || film.ValueKind != JsonValueKind.Object)
@@ -391,12 +419,12 @@ public class LetterboxdApi
         }
 
         var summary = ParseFilmSummary(film);
-        if (string.IsNullOrEmpty(summary.TmdbId))
+        if (string.IsNullOrEmpty(summary.FilmId))
         {
             return null;
         }
 
-        var entry = new DiaryEntry { TmdbId = summary.TmdbId, FilmSlug = summary.FilmSlug };
+        var entry = new DiaryEntry { FilmId = summary.FilmId, TmdbId = summary.TmdbId, FilmSlug = summary.FilmSlug };
 
         if (logEntry.TryGetProperty("diaryDetails", out var diary)
             && diary.TryGetProperty("diaryDate", out var diaryDate)
@@ -404,7 +432,7 @@ public class LetterboxdApi
             && DateTime.TryParse(diaryDate.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
         {
             // Pin the diary date to UTC midnight so it round-trips through Jellyfin's storage without
-            // shifting a day (the daily export re-logs on this same date and relies on 204 idempotency).
+            // shifting a day.
             entry.DiaryDate = parsed;
         }
 
@@ -622,7 +650,7 @@ public class LetterboxdApi
                 request.Content = content;
             }
 
-            using var response = await Client.SendAsync(request).ConfigureAwait(false);
+            using var response = await _client.SendAsync(request).ConfigureAwait(false);
             body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             status = response.StatusCode;
 

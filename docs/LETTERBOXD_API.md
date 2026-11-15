@@ -188,17 +188,18 @@ items[0] = { id:"2aNK", name:"The Godfather", releaseYear:1972 }
   }
   ```
 - Responses:
-  - `200`/`201` `LogEntry` → created. **In practice the live API returns `200 OK`** with the new
-    `LogEntry` body, even though the reference spec documents `201`. Treat both as success and read
-    `id` (the log entry LID) from the body.
-  - `204` → **no action taken, the log entry already exists** (built-in idempotency — a natural
-    replacement for the old `GetDateLastLog` "already logged this date" check)
+  - `200`/`201` `LogEntry` → created. In practice the live API returns `200 OK` with the new
+    `LogEntry` body. Treat both as success and read `id` (the log-entry LID) from the body.
+  - `204` may indicate that no action was taken, but **do not rely on it for duplicate prevention**:
+    repeated requests have created additional entries in practice.
   - `400` bad request · `401` no authenticated member · `404` film not found
 
-### 6.3 Already-logged check (optional) — `GET /log-entries`
+### 6.3 Already-logged check — `GET /log-entries`
 
-If we want to avoid re-logging beyond the `204` behaviour: `GET /log-entries?film=<LID>&member=<memberLID>`
-and inspect each entry's `diaryDetails.diaryDate`. Get the authenticated member LID from `GET /me`.
+`POST /log-entries` must not be treated as idempotent. Before creating a diary entry, query
+`GET /log-entries?film=<filmLID>&member=<memberLID>&where=HasDiaryDate` and inspect the returned
+`diaryDetails.diaryDate` values. Skip creation when the same film already has an entry for the
+requested date. Resolve the authenticated member LID once with `GET /me`.
 
 ### 6.4 Watchlist sync — `GET /member/{memberLID}/watchlist`
 
