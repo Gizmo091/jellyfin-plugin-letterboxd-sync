@@ -83,7 +83,14 @@ public class RealtimeSyncService : IHostedService
             {
                 var api = new LetterboxdApi(_logger);
                 await LetterboxdAuthenticator.AuthenticateAsync(api, account, _logger).ConfigureAwait(false);
-                await LetterboxdMovieSync.LogMovieAsync(api, movie, user, userData, account, _logger).ConfigureAwait(false);
+                var memberId = await api.GetAuthenticatedMemberId().ConfigureAwait(false);
+                if (string.IsNullOrEmpty(memberId))
+                {
+                    _logger.LogWarning("Could not resolve the Letterboxd member id for user {UserId}; skipping real-time sync.", userIdN);
+                    return;
+                }
+
+                await LetterboxdMovieSync.LogMovieAsync(api, movie, user, userData, memberId, account, _logger).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

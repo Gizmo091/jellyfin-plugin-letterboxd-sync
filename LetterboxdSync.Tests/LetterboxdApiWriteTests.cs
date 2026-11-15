@@ -58,7 +58,7 @@ namespace Jellyfin.Plugin.LetterboxdSync.Tests
             Assert.NotNull(film);
             Assert.NotEmpty(film!.FilmId);
 
-            // Create a diary entry (or 204 if it already exists), then delete it to keep the account tidy.
+            // Create a diary entry, then delete it to keep the test account tidy.
             var logEntryId = await api.MarkAsWatched(film.FilmId, DateTime.UtcNow.Date, tags: null, liked: false);
 
             if (!string.IsNullOrEmpty(logEntryId))

@@ -78,9 +78,16 @@ public class LetterboxdSyncTask : IScheduledTask
             }
 
             var api = new LetterboxdApi(_logger);
+            string? memberId;
             try
             {
                 await LetterboxdAuthenticator.AuthenticateAsync(api, account, _logger).ConfigureAwait(false);
+                memberId = await api.GetAuthenticatedMemberId().ConfigureAwait(false);
+                if (string.IsNullOrEmpty(memberId))
+                {
+                    _logger.LogWarning("Could not resolve the Letterboxd member id for user {Username} ({UserId}); skipping sync.", user.Username, user.Id.ToString("N"));
+                    continue;
+                }
             }
             catch (Exception ex)
             {
@@ -105,7 +112,7 @@ public class LetterboxdSyncTask : IScheduledTask
 
                 try
                 {
-                    var logged = await LetterboxdMovieSync.LogMovieAsync(api, movie, user, userItemData, account, _logger).ConfigureAwait(false);
+                    var logged = await LetterboxdMovieSync.LogMovieAsync(api, movie, user, userItemData, memberId, account, _logger).ConfigureAwait(false);
 
                     // Only pause between films we actually hit the API for, to stay well-mannered.
                     if (logged)

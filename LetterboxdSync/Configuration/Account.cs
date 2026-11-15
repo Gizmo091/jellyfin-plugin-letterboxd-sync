@@ -30,8 +30,7 @@ public class Account
     /// <summary>
     /// Gets or sets a value indicating whether the Jellyfin personal rating (0-10) is sent to
     /// Letterboxd as a star rating (0.5-5.0). Defaults to true. Ratings are only applied when a film
-    /// is first logged (Letterboxd's log-entry endpoint is idempotent), so this never overwrites an
-    /// existing Letterboxd rating.
+    /// is first logged. Existing Letterboxd ratings are not overwritten by later syncs.
     /// </summary>
     public bool SendRating { get; set; } = true;
 

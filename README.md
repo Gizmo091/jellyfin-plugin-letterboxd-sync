@@ -55,7 +55,7 @@ https://raw.githubusercontent.com/Gizmo091/jellyfin-plugin-letterboxd-sync/maste
 
 - The daily catch-up task runs every 24 hours, only for accounts marked as `Enable`.
 
-- **`Real-time Sync`** (on by default) logs a film to Letterboxd the moment you finish watching it, so you don't have to wait for the daily task. The daily task still runs as a safety net — logging is idempotent, so nothing is duplicated.
+- **`Real-time Sync`** (on by default) logs a film to Letterboxd when you finish watching it. The daily task is a catch-up safety net: it checks the diary for the same film and date before creating an entry, so existing diary entries (including entries added outside Jellyfin) are not duplicated.
 
 - Check `Send Favorite` if you want films marked as favorites on Jellyfin to also be marked as favorites on Letterboxd.
 

@@ -8,6 +8,9 @@ namespace Jellyfin.Plugin.LetterboxdSync;
 /// </summary>
 public class DiaryEntry
 {
+    /// <summary>Gets or sets the Letterboxd film LID.</summary>
+    public string FilmId { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the film's TMDB id (used to match against the Jellyfin library).</summary>
     public string? TmdbId { get; set; }
 
